@@ -36,36 +36,36 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   # State Management
-  flutter_riverpod: ^2.5.1
+  flutter_riverpod: ^3.2.1
 
   # Network & Backend
-  http: ^1.2.0
-  dio: ^5.4.0
+  http: ^1.4.0
+  dio: ^5.9.1
 
   # Location Services
-  geolocator: ^11.0.0
+  geolocator: ^14.0.2
 
   # QR Code
   qr_flutter: ^4.1.0
-  mobile_scanner: ^3.5.6
+  mobile_scanner: ^7.1.4
 
   # Device Info (for device binding)
-  device_info_plus: ^10.1.0
+  device_info_plus: ^12.3.0
 
   # File Handling (CSV upload)
-  file_picker: ^6.1.1
-  csv: ^5.1.1
+  file_picker: ^10.3.10
+  csv: ^6.0.0
 
   # Secure Storage
-  flutter_secure_storage: ^9.0.0
+  flutter_secure_storage: ^10.0.0
 
   # UI & Charts
-  fl_chart: ^0.66.0
-  google_fonts: ^6.1.0
+  fl_chart: ^1.1.1
+  google_fonts: ^8.0.1
 
   # Utilities
-  intl: ^0.19.0
-  uuid: ^4.3.3
+  intl: ^0.20.2
+  uuid: ^4.5.2
 
 dev_dependencies:
   flutter_test:

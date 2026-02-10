@@ -1,6 +1,6 @@
 class ApiEndpoints {
-  // Base URL - Replace with your actual backend URL
-  static const String baseUrl = 'http://localhost:5000/api';
+  // Base URL - Use 10.0.2.2 for Android emulator to connect to localhost
+  static const String baseUrl = 'http://10.0.2.2:5000/api';
 
   // Authentication
   static const String login = '$baseUrl/auth/login';

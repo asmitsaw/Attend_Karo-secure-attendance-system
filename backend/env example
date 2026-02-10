@@ -1,6 +1,0 @@
-PORT=5000
-DATABASE_URL=postgresql://postgres:password@localhost:5432/attend_karo
-JWT_SECRET=your_super_secret_jwt_key_change_this_in_production
-QR_SIGNATURE_SECRET=your_super_secret_qr_key_change_this_in_production
-GEO_FENCE_RADIUS=30
-QR_VALIDITY_SECONDS=10

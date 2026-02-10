@@ -1,18 +1,19 @@
-const bcrypt = require('bcryptjs');
-
 /**
- * Hash password
+ * WARNING: Plain-text password mode (no hashing).
+ * You asked to "use normal pass", so this disables bcrypt and
+ * simply stores/compares the raw password string.
+ * Do NOT use this in production.
  */
+
+// Store password as-is
 async function hashPassword(password) {
-    const salt = await bcrypt.genSalt(10);
-    return bcrypt.hash(password, salt);
+    return password;
 }
 
-/**
- * Compare password with hash
- */
-async function comparePassword(password, hash) {
-    return bcrypt.compare(password, hash);
+// Compare raw password values
+async function comparePassword(password, storedPassword) {
+    if (storedPassword == null) return false;
+    return password === storedPassword;
 }
 
 module.exports = {
