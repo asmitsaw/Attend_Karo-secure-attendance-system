@@ -2,7 +2,7 @@ name: attend_karo
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+publish_to: "none" # Remove this line if you wish to publish to pub.dev
 
 # The following defines the version and build number for your application.
 # A version number is three numbers separated by dots, like 1.2.43
@@ -35,6 +35,38 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
+  # State Management
+  flutter_riverpod: ^2.5.1
+
+  # Network & Backend
+  http: ^1.2.0
+  dio: ^5.4.0
+
+  # Location Services
+  geolocator: ^11.0.0
+
+  # QR Code
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^3.5.6
+
+  # Device Info (for device binding)
+  device_info_plus: ^10.1.0
+
+  # File Handling (CSV upload)
+  file_picker: ^6.1.1
+  csv: ^5.1.1
+
+  # Secure Storage
+  flutter_secure_storage: ^9.0.0
+
+  # UI & Charts
+  fl_chart: ^0.66.0
+  google_fonts: ^6.1.0
+
+  # Utilities
+  intl: ^0.19.0
+  uuid: ^4.3.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -51,7 +83,6 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
-
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
