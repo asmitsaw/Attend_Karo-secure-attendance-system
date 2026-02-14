@@ -92,7 +92,7 @@ class _CreateClassScreenState extends State<CreateClassScreen> {
                   labelText: 'Department',
                   prefixIcon: Icon(Icons.business),
                 ),
-                value: _selectedDepartment,
+                initialValue: _selectedDepartment,
                 items: _departments.map((dept) {
                   return DropdownMenuItem(value: dept, child: Text(dept));
                 }).toList(),
@@ -114,7 +114,7 @@ class _CreateClassScreenState extends State<CreateClassScreen> {
                   labelText: 'Semester',
                   prefixIcon: Icon(Icons.calendar_today),
                 ),
-                value: _selectedSemester,
+                initialValue: _selectedSemester,
                 items: _semesters.map((sem) {
                   return DropdownMenuItem(
                     value: sem,

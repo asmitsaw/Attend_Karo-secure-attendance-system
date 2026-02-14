@@ -134,7 +134,7 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
                   labelText: 'Select Class',
                   prefixIcon: Icon(Icons.class_),
                 ),
-                value: _selectedClass,
+                initialValue: _selectedClass,
                 items: _classes.map((classItem) {
                   return DropdownMenuItem(
                     value: classItem,

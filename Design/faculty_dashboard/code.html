@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Faculty Dashboard - Attend Karo</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#25bdf8",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#0f1d23", // Using the config value, close to requested #0F172A
+                        "surface-dark": "#16262e", // Slightly lighter than background-dark for cards
+                    },
+                    fontFamily: {
+                        "display": ["Lexend", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Hide scrollbar for clean horizontal scrolling */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-800 dark:text-slate-200 antialiased min-h-screen flex flex-col relative overflow-hidden">
+<!-- Header Section -->
+<header class="px-6 pt-12 pb-6 flex justify-between items-center sticky top-0 z-20 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-sm">
+<div>
+<h2 class="text-sm font-medium text-slate-500 dark:text-slate-400">Good Morning,</h2>
+<h1 class="text-2xl font-bold text-slate-900 dark:text-white">Prof. Sharma</h1>
+</div>
+<div class="flex items-center gap-3">
+<button class="relative p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
+<span class="material-icons text-slate-600 dark:text-slate-300">notifications_none</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-background-light dark:border-background-dark"></span>
+</button>
+<div class="w-10 h-10 rounded-full overflow-hidden border-2 border-slate-200 dark:border-slate-700">
+<img alt="Profile Avatar" class="w-full h-full object-cover" data-alt="Professor profile picture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCNv97ps6rtSlk4sTw84hsD4P2ItOIsaqmh2AKkfxPOrunpfpaTZijEkl88JNAby6Q8_a9H1JL49Hj6GorI6UBoMDn-s_tepsar9eEUhNXBPr_b9ucENhk1BKjmQdwrV20hRfuRdvzwrNf2OkcMJ3EKsSmOX0H8QK3FRm1vpPr3dD_HQCVz1oqlgMZUMmWdDl0LN2EKLFNcNsdciR5Dfjp0YisOqwpzjAWUhe10BXtQRke6Sgwxb_-zrxIFYrnq4aun27dNUi-kSrc"/>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-1 overflow-y-auto pb-24 px-6 no-scrollbar">
+<!-- Stats Row -->
+<section class="mb-8">
+<div class="flex gap-4 overflow-x-auto no-scrollbar pb-2 snap-x">
+<!-- Active Classes Card -->
+<div class="min-w-[140px] flex-1 bg-white dark:bg-surface-dark p-4 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm snap-start">
+<div class="flex items-start justify-between mb-3">
+<div class="p-2 bg-primary/10 rounded-lg">
+<span class="material-icons text-primary text-xl">class</span>
+</div>
+</div>
+<p class="text-3xl font-bold text-slate-900 dark:text-white mb-1">3</p>
+<p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Active Today</p>
+</div>
+<!-- Total Students Card -->
+<div class="min-w-[140px] flex-1 bg-white dark:bg-surface-dark p-4 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm snap-start">
+<div class="flex items-start justify-between mb-3">
+<div class="p-2 bg-purple-500/10 rounded-lg">
+<span class="material-icons text-purple-400 text-xl">groups</span>
+</div>
+</div>
+<p class="text-3xl font-bold text-slate-900 dark:text-white mb-1">142</p>
+<p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Students</p>
+</div>
+<!-- Proxy Alerts Card -->
+<div class="min-w-[140px] flex-1 bg-white dark:bg-surface-dark p-4 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm snap-start relative overflow-hidden">
+<div class="absolute right-0 top-0 w-16 h-16 bg-orange-500/5 rounded-bl-full -mr-4 -mt-4"></div>
+<div class="flex items-start justify-between mb-3">
+<div class="p-2 bg-orange-500/10 rounded-lg">
+<span class="material-icons text-orange-400 text-xl">warning</span>
+</div>
+</div>
+<p class="text-3xl font-bold text-slate-900 dark:text-white mb-1">2</p>
+<p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Proxy Alerts</p>
+</div>
+</div>
+</section>
+<!-- Quick Action Title -->
+<div class="flex justify-between items-center mb-4">
+<h3 class="text-lg font-bold text-slate-900 dark:text-white">Recent Classes</h3>
+<button class="text-xs font-medium text-primary hover:text-primary/80">View All</button>
+</div>
+<!-- Class List -->
+<div class="space-y-4">
+<!-- Class Card 1: Active/Upcoming -->
+<div class="bg-white dark:bg-surface-dark rounded-xl p-5 border-l-4 border-primary shadow-sm relative overflow-hidden group">
+<div class="absolute right-0 top-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-icons text-6xl text-primary">code</span>
+</div>
+<div class="flex justify-between items-start mb-3 relative z-10">
+<div>
+<span class="inline-block px-2 py-1 bg-primary/20 text-primary text-[10px] font-bold uppercase tracking-wider rounded mb-2">Ongoing</span>
+<h4 class="text-lg font-bold text-slate-900 dark:text-white leading-tight">CS101 - Data Structures</h4>
+<p class="text-sm text-slate-500 dark:text-slate-400 mt-1">B.Tech CS - Year 2</p>
+</div>
+<div class="text-right">
+<p class="text-sm font-bold text-slate-900 dark:text-white">09:00 AM</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">Room 304</p>
+</div>
+</div>
+<div class="mt-4 flex gap-3 relative z-10">
+<button class="flex-1 bg-primary hover:bg-sky-400 text-white text-sm font-medium py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-lg shadow-primary/25">
+<span class="material-icons text-base">qr_code_scanner</span>
+                        Start Attendance
+                    </button>
+</div>
+</div>
+<!-- Class Card 2: Upcoming -->
+<div class="bg-white dark:bg-surface-dark rounded-xl p-5 border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden">
+<div class="flex justify-between items-start mb-3">
+<div>
+<span class="inline-block px-2 py-1 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 text-[10px] font-bold uppercase tracking-wider rounded mb-2">Upcoming</span>
+<h4 class="text-lg font-bold text-slate-900 dark:text-white leading-tight">CS202 - DBMS</h4>
+<p class="text-sm text-slate-500 dark:text-slate-400 mt-1">B.Tech CS - Year 3</p>
+</div>
+<div class="text-right">
+<p class="text-sm font-bold text-slate-900 dark:text-white">11:00 AM</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">Lab 2</p>
+</div>
+</div>
+<div class="mt-4 flex gap-3">
+<button class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm font-medium py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
+<span class="material-icons text-base">visibility</span>
+                        View Details
+                    </button>
+</div>
+</div>
+<!-- Class Card 3: Completed -->
+<div class="bg-white dark:bg-surface-dark rounded-xl p-5 border border-slate-100 dark:border-slate-800 shadow-sm opacity-80">
+<div class="flex justify-between items-start mb-3">
+<div>
+<span class="inline-block px-2 py-1 bg-green-500/10 text-green-500 text-[10px] font-bold uppercase tracking-wider rounded mb-2">Completed</span>
+<h4 class="text-lg font-bold text-slate-900 dark:text-white leading-tight">CS305 - Network Security</h4>
+<p class="text-sm text-slate-500 dark:text-slate-400 mt-1">M.Tech - Year 1</p>
+</div>
+<div class="text-right">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Yesterday</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">Room 101</p>
+</div>
+</div>
+<div class="mt-2 pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center">
+<p class="text-xs text-slate-500 dark:text-slate-400">45/50 Present</p>
+<button class="text-xs font-medium text-primary">View Report</button>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating Action Button (FAB) -->
+<div class="fixed right-6 bottom-24 z-30">
+<button class="bg-primary hover:bg-sky-400 text-white w-14 h-14 rounded-full shadow-lg shadow-primary/40 flex items-center justify-center transition-transform hover:scale-105 active:scale-95 group">
+<span class="material-icons text-2xl group-hover:rotate-90 transition-transform duration-300">add</span>
+</button>
+</div>
+<!-- Bottom Navigation -->
+<nav class="fixed bottom-0 w-full bg-white dark:bg-surface-dark border-t border-slate-200 dark:border-slate-800 z-40 pb-safe">
+<div class="flex justify-around items-center h-16 px-2">
+<button class="flex flex-col items-center justify-center w-full h-full text-primary group">
+<span class="material-icons mb-1 group-hover:scale-110 transition-transform">dashboard</span>
+<span class="text-[10px] font-medium">Dashboard</span>
+</button>
+<button class="flex flex-col items-center justify-center w-full h-full text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors group">
+<span class="material-icons mb-1 group-hover:scale-110 transition-transform">menu_book</span>
+<span class="text-[10px] font-medium">Classes</span>
+</button>
+<button class="flex flex-col items-center justify-center w-full h-full text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors group">
+<span class="material-icons mb-1 group-hover:scale-110 transition-transform">bar_chart</span>
+<span class="text-[10px] font-medium">Analytics</span>
+</button>
+</div>
+</nav>
+<!-- Safe Area Spacer for iOS Home Indicator (if needed explicitly, though pb-safe usually handles this in native-like environments or Tailwind plugins if configured, simulating simply here) -->
+<div class="h-6 w-full bg-white dark:bg-surface-dark fixed bottom-0 z-30 pointer-events-none"></div>
+</body></html>

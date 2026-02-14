@@ -3,14 +3,15 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // Colors
-  static const Color primaryColor = Color(0xFF3F51B5); // Indigo
-  static const Color primaryDarkColor = Color(0xFF303F9F);
+  // Primary palette inspired by Tailwind config in Design HTML
+  static const Color primaryColor = Color(0xFF25BDF8); // #25bdf8
+  static const Color primaryDarkColor = Color(0xFF0F1D23);
   static const Color accentColor = Color(0xFF00BCD4);
   static const Color errorColor = Color(0xFFE53935);
   static const Color successColor = Color(0xFF43A047);
   static const Color warningColor = Color(0xFFFF9800);
 
-  static const Color backgroundColor = Color(0xFFF5F5F5);
+  static const Color backgroundColor = Color(0xFFF5F7F8); // background-light
   static const Color surfaceColor = Colors.white;
   static const Color textPrimaryColor = Color(0xFF212121);
   static const Color textSecondaryColor = Color(0xFF757575);
@@ -32,35 +33,36 @@ class AppTheme {
       onSurface: textPrimaryColor,
     ),
 
-    textTheme: GoogleFonts.poppinsTextTheme().copyWith(
-      displayLarge: GoogleFonts.poppins(
+    // Typography: use Lexend to match Tailwind design files
+    textTheme: GoogleFonts.lexendTextTheme().copyWith(
+      displayLarge: GoogleFonts.lexend(
         fontSize: 32,
         fontWeight: FontWeight.bold,
         color: textPrimaryColor,
       ),
-      displayMedium: GoogleFonts.poppins(
+      displayMedium: GoogleFonts.lexend(
         fontSize: 28,
         fontWeight: FontWeight.bold,
         color: textPrimaryColor,
       ),
-      headlineMedium: GoogleFonts.poppins(
+      headlineMedium: GoogleFonts.lexend(
         fontSize: 24,
         fontWeight: FontWeight.w600,
         color: textPrimaryColor,
       ),
-      titleLarge: GoogleFonts.poppins(
+      titleLarge: GoogleFonts.lexend(
         fontSize: 20,
         fontWeight: FontWeight.w600,
         color: textPrimaryColor,
       ),
-      titleMedium: GoogleFonts.poppins(
+      titleMedium: GoogleFonts.lexend(
         fontSize: 16,
         fontWeight: FontWeight.w500,
         color: textPrimaryColor,
       ),
-      bodyLarge: GoogleFonts.poppins(fontSize: 16, color: textPrimaryColor),
-      bodyMedium: GoogleFonts.poppins(fontSize: 14, color: textSecondaryColor),
-      labelLarge: GoogleFonts.poppins(
+      bodyLarge: GoogleFonts.lexend(fontSize: 16, color: textPrimaryColor),
+      bodyMedium: GoogleFonts.lexend(fontSize: 14, color: textSecondaryColor),
+      labelLarge: GoogleFonts.lexend(
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: Colors.white,
