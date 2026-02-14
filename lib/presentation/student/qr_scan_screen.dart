@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../data/data_sources/qr_service.dart';
 import '../../data/data_sources/location_service.dart';
 import '../../data/data_sources/device_service.dart';
+import '../../data/data_sources/student_service.dart';
 
 class QRScanScreen extends StatefulWidget {
   const QRScanScreen({super.key});
@@ -106,7 +107,7 @@ class _QRScanScreenState extends State<QRScanScreen>
     }
 
     // Step 6: Get device ID
-    final _ = await _deviceService.getDeviceId();
+    final deviceId = await _deviceService.getDeviceId();
 
     // Step 7: Check if emulator
     final isEmulator = await _deviceService.isEmulator();
@@ -122,14 +123,31 @@ class _QRScanScreenState extends State<QRScanScreen>
       return;
     }
 
-    // Step 9: Backend call (simulated)
-    await Future.delayed(const Duration(seconds: 2));
+    // Step 9: Backend call (Real)
+    try {
+      final studentService = StudentService();
+      final result = await studentService.markAttendance(
+        sessionId: sessionId,
+        qrData: qrData,
+        deviceId: deviceId,
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
 
-    setState(() => _scanComplete = true);
+      setState(() => _isProcessing = false);
 
-    if (!mounted) return;
-
-    _showSuccessDialog();
+      if (result['message'] == 'Attendance marked successfully!' ||
+          result['success'] == true) {
+        setState(() => _scanComplete = true);
+        if (mounted) _showSuccessDialog();
+      } else {
+        // Backend returned an error (e.g., location mismatch, device mismatch)
+        if (mounted) _showError(result['message'] ?? 'Attendance failed');
+      }
+    } catch (e) {
+      setState(() => _isProcessing = false);
+      if (mounted) _showError('Connection failed: $e');
+    }
   }
 
   void _showSuccessDialog() {

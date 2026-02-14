@@ -1,7 +1,11 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/constants/api_endpoints.dart';
+import '../../core/constants/app_constants.dart';
 
 class StartSessionScreen extends StatefulWidget {
   const StartSessionScreen({super.key});
@@ -12,44 +16,69 @@ class StartSessionScreen extends StatefulWidget {
 
 class _StartSessionScreenState extends State<StartSessionScreen>
     with SingleTickerProviderStateMixin {
-  String? _selectedClass;
+  String? _selectedClassId;
+  String? _selectedClassName;
   bool _sessionStarted = false;
+  bool _isLoading = false;
   int _scannedCount = 0;
-  final int _lateCount = 2;
-  String _qrData = '';
-  Timer? _qrRefreshTimer;
+  String _sessionCode = '';
+  String? _sessionId;
+  final Dio _dio = Dio();
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  Timer? _liveStatsTimer;
   Timer? _sessionTimer;
   int _sessionSeconds = 0;
 
-  late AnimationController _pulseController;
-
-  final List<String> _classes = [
-    'Data Structures - Sem 3 - A',
-    'Algorithms - Sem 4 - B',
-    'Database Systems - Sem 3 - C',
-  ];
+  // Classes loaded from backend: [{id, name}]
+  List<Map<String, String>> _classes = [];
+  bool _classesLoading = true;
 
   final List<Map<String, String>> _recentScans = [];
 
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
+    _loadClasses();
   }
 
   @override
   void dispose() {
-    _qrRefreshTimer?.cancel();
+    _liveStatsTimer?.cancel();
     _sessionTimer?.cancel();
-    _pulseController.dispose();
     super.dispose();
   }
 
+  /// Load classes from backend for the logged-in faculty
+  Future<void> _loadClasses() async {
+    try {
+      final token = await _storage.read(key: AppConstants.keyAuthToken);
+      if (token == null) {
+        setState(() => _classesLoading = false);
+        return;
+      }
+
+      final response = await _dio.get(
+        '${ApiEndpoints.baseUrl}/faculty/classes',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      final List classData = response.data['classes'] ?? [];
+      setState(() {
+        _classes = classData.map<Map<String, String>>((c) {
+          return {
+            'id': c['id'].toString(),
+            'name': '${c['subject']} - Sem ${c['semester']} - ${c['section']}',
+          };
+        }).toList();
+        _classesLoading = false;
+      });
+    } catch (e) {
+      setState(() => _classesLoading = false);
+    }
+  }
+
   Future<void> _startSession() async {
-    if (_selectedClass == null) {
+    if (_selectedClassId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Please select a class first'),
@@ -63,59 +92,110 @@ class _StartSessionScreenState extends State<StartSessionScreen>
       return;
     }
 
-    setState(() {
-      _sessionStarted = true;
-      _scannedCount = 0;
-      _sessionSeconds = 0;
-      _recentScans.clear();
-      _generateQRCode();
-    });
+    setState(() => _isLoading = true);
 
-    // Timer
+    try {
+      final token = await _storage.read(key: AppConstants.keyAuthToken);
+
+      final response = await _dio.post(
+        ApiEndpoints.startSession,
+        data: {
+          'classId': _selectedClassId,
+          'latitude': 0.0,
+          'longitude': 0.0,
+          'radius': 30,
+        },
+        options: token != null
+            ? Options(headers: {'Authorization': 'Bearer $token'})
+            : null,
+      );
+
+      final sessionData = response.data['session'];
+
+      setState(() {
+        _isLoading = false;
+        _sessionStarted = true;
+        _scannedCount = 0;
+        _sessionSeconds = 0;
+        _recentScans.clear();
+        _sessionId = sessionData['id'];
+        _sessionCode = sessionData['sessionCode'] ?? '';
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+
+      String errorMsg = 'Failed to start session. Check backend connection.';
+      if (e is DioException && e.response != null) {
+        errorMsg = e.response?.data['message'] ?? errorMsg;
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMsg),
+          backgroundColor: AppTheme.dangerColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+      return;
+    }
+
     _sessionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (mounted) setState(() => _sessionSeconds++);
     });
 
-    // Refresh QR every 10s
-    _qrRefreshTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
-      if (mounted) _generateQRCode();
-    });
-
-    // Simulate scans
-    _simulateScans();
-  }
-
-  void _generateQRCode() {
-    final timestamp = DateTime.now().toIso8601String();
-    setState(() {
-      _qrData =
-          '{"session_id":"SESSION_123","timestamp":"$timestamp","signature":"MOCK_SIG"}';
+    // Poll live stats every 5 seconds
+    _liveStatsTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (mounted) _fetchLiveStats();
     });
   }
 
-  void _simulateScans() {
-    final names = [
-      'Arjun Mehta',
-      'Priya Sen',
-      'Rahul Verma',
-      'Sneha Das',
-      'Karan K.',
-    ];
-    int idx = 0;
-    Timer.periodic(const Duration(seconds: 4), (timer) {
-      if (!_sessionStarted || !mounted || idx >= names.length) {
-        timer.cancel();
-        return;
+  /// Fetch fresh live stats from backend
+  Future<void> _fetchLiveStats() async {
+    if (_sessionId != null) {
+      try {
+        final token = await _storage.read(key: AppConstants.keyAuthToken);
+        final res = await _dio.get(
+          '${ApiEndpoints.baseUrl}/faculty/session/$_sessionId/live-count',
+          options: token != null
+              ? Options(headers: {'Authorization': 'Bearer $token'})
+              : null,
+        );
+
+        if (mounted) {
+          final students = res.data['students'] as List;
+          setState(() {
+            _scannedCount = res.data['count'] ?? 0;
+            _recentScans.clear();
+            _recentScans.addAll(
+              students.map<Map<String, String>>(
+                (s) => {
+                  'name': s['name'].toString(),
+                  'time': _formatTimeFromIso(s['timestamp']),
+                },
+              ),
+            );
+          });
+        }
+      } catch (_) {
+        // Silent catch for polling
       }
-      setState(() {
-        _scannedCount++;
-        _recentScans.insert(0, {
-          'name': names[idx],
-          'time': _formatTime(_sessionSeconds),
-        });
-      });
-      idx++;
-    });
+    }
+  }
+
+  String _formatTimeFromIso(String? iso) {
+    if (iso == null) return '';
+    try {
+      final dt = DateTime.parse(iso).toLocal();
+      final m = dt.minute.toString().padLeft(2, '0');
+      final h = dt.hour.toString().padLeft(2, '0');
+      return '$h:$m';
+    } catch (e) {
+      return '';
+    }
   }
 
   String _formatTime(int totalSeconds) {
@@ -125,48 +205,69 @@ class _StartSessionScreenState extends State<StartSessionScreen>
   }
 
   Future<void> _endSession() async {
-    _qrRefreshTimer?.cancel();
-    _sessionTimer?.cancel();
-
-    if (!mounted) return;
-
-    showDialog(
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('End Session'),
         content: Text(
-          'Total students scanned: $_scannedCount\n\n'
-          'Remaining students will be marked as ABSENT. Continue?',
+          'Total students present: $_scannedCount\n\n'
+          'Are you sure you want to stop the session? This will also stop the display on the web.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Session ended successfully'),
-                  backgroundColor: AppTheme.successColor,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              );
-            },
+            onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.dangerColor,
+              foregroundColor: Colors.white,
             ),
             child: const Text('End Session'),
           ),
         ],
       ),
     );
+
+    if (confirmed != true) return;
+
+    _liveStatsTimer?.cancel();
+    _sessionTimer?.cancel();
+
+    // Call backend
+    if (_sessionId != null) {
+      try {
+        final token = await _storage.read(key: AppConstants.keyAuthToken);
+        await _dio.post(
+          '${ApiEndpoints.baseUrl}/faculty/session/$_sessionId/end',
+          options: token != null
+              ? Options(headers: {'Authorization': 'Bearer $token'})
+              : null,
+        );
+      } catch (_) {
+        // Ignore error on session end call best-effort
+      }
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Session ended successfully'),
+          backgroundColor: AppTheme.successColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+      setState(() {
+        _sessionStarted = false;
+        _sessionId = null;
+      });
+    }
   }
 
   @override
@@ -191,7 +292,6 @@ class _StartSessionScreenState extends State<StartSessionScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Class selection
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -215,28 +315,76 @@ class _StartSessionScreenState extends State<StartSessionScreen>
                   ),
                 ),
                 const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  decoration: InputDecoration(
-                    labelText: 'Choose Class',
-                    prefixIcon: const Icon(Icons.class_),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  initialValue: _selectedClass,
-                  items: _classes.map((c) {
-                    return DropdownMenuItem(value: c, child: Text(c));
-                  }).toList(),
-                  onChanged: (v) => setState(() => _selectedClass = v),
-                ),
+                _classesLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _classes.isEmpty
+                    ? Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppTheme.warningColor.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppTheme.warningColor.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: AppTheme.warningColor,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'No classes found. Create a class first.',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: AppTheme.warningColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : DropdownButtonFormField<String>(
+                        decoration: InputDecoration(
+                          labelText: 'Choose Class',
+                          prefixIcon: const Icon(Icons.class_),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        value: _selectedClassId,
+                        items: _classes.map((c) {
+                          return DropdownMenuItem(
+                            value: c['id'],
+                            child: Text(c['name']!),
+                          );
+                        }).toList(),
+                        onChanged: (v) => setState(() {
+                          _selectedClassId = v;
+                          _selectedClassName = _classes.firstWhere(
+                            (c) => c['id'] == v,
+                          )['name'];
+                        }),
+                      ),
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton.icon(
-                    onPressed: _startSession,
-                    icon: const Icon(Icons.play_arrow_rounded),
-                    label: const Text('Start Session'),
+                    onPressed: _isLoading ? null : _startSession,
+                    icon: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.play_arrow_rounded),
+                    label: Text(_isLoading ? 'Starting...' : 'Start Session'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.successColor,
                       foregroundColor: Colors.white,
@@ -259,163 +407,156 @@ class _StartSessionScreenState extends State<StartSessionScreen>
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          // ── QR Code Card ──
+          // ── Session Code Card ──
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white,
+              gradient: LinearGradient(
+                colors: [AppTheme.primaryColor, AppTheme.accentPurple],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
+                  color: AppTheme.primaryColor.withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
                 ),
               ],
             ),
             child: Column(
               children: [
-                // QR
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: AppTheme.primaryColor.withOpacity(0.1),
-                    ),
-                  ),
-                  child: QrImageView(
-                    data: _qrData,
-                    version: QrVersions.auto,
-                    size: 200,
-                    eyeStyle: const QrEyeStyle(
-                      eyeShape: QrEyeShape.square,
-                      color: AppTheme.primaryColor,
-                    ),
-                    dataModuleStyle: const QrDataModuleStyle(
-                      dataModuleShape: QrDataModuleShape.square,
-                      color: AppTheme.primaryColor,
-                    ),
+                Text(
+                  'SESSION CODE',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: Colors.white.withOpacity(0.8),
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 2.0,
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'QR refreshes every 10 seconds',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: AppTheme.textTertiary,
+                  _sessionCode.isNotEmpty ? _sessionCode : '------',
+                  style: theme.textTheme.displayMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 8,
+                    color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 16),
-
-                // Timer
-                AnimatedBuilder(
-                  animation: _pulseController,
-                  builder: (context, child) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withOpacity(
-                          0.05 + 0.04 * _pulseController.value,
-                        ),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: AppTheme.successColor,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _formatTime(_sessionSeconds),
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              fontFeatures: [
-                                const FontFeature.tabularFigures(),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 12),
-                // GPS lock
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.gps_fixed,
-                      size: 14,
-                      color: AppTheme.successColor,
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'Display on Classroom Screen',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.white,
+                      fontSize: 10,
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'GPS Lock Active',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: AppTheme.successColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
-          // ── Statistics ──
+          // ── Stats ──
           Row(
             children: [
               Expanded(
-                child: _LiveStatCard(
-                  icon: Icons.people,
-                  iconColor: AppTheme.successColor,
-                  value: '$_scannedCount',
-                  label: 'Students Present',
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.timer_outlined,
+                        size: 24,
+                        color: AppTheme.primaryColor,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _formatTime(_sessionSeconds),
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.primaryColor,
+                          fontFeatures: [const FontFeature.tabularFigures()],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text('Elapsed Time', style: theme.textTheme.labelSmall),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Expanded(
-                child: _LiveStatCard(
-                  icon: Icons.schedule,
-                  iconColor: AppTheme.warningColor,
-                  value: '$_lateCount',
-                  label: 'Late Arrivals',
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _LiveStatCard(
-                  icon: Icons.timer,
-                  iconColor: AppTheme.primaryColor,
-                  value: '4.2s',
-                  label: 'Avg Time',
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.people_outline,
+                        size: 24,
+                        color: AppTheme.successColor,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '$_scannedCount',
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.successColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Students Present',
+                        style: theme.textTheme.labelSmall,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
-          // ── Recent Scans ──
+          // ── Student List ──
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.04),
@@ -427,63 +568,108 @@ class _StartSessionScreenState extends State<StartSessionScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Recent Scans',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Live Student List',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (_recentScans.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.successColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'Live',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: AppTheme.successColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 if (_recentScans.isEmpty)
                   Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Text(
-                        'Waiting for students to scan...',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppTheme.textTertiary,
-                        ),
+                      padding: const EdgeInsets.symmetric(vertical: 32),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.person_off_outlined,
+                            size: 48,
+                            color: AppTheme.textTertiary.withOpacity(0.5),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No students joined yet',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: AppTheme.textTertiary,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   )
                 else
-                  ..._recentScans
-                      .take(5)
-                      .map(
-                        (scan) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: AppTheme.successColor.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Icon(
-                                  Icons.check,
-                                  color: AppTheme.successColor,
-                                  size: 18,
-                                ),
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _recentScans.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (ctx, idx) {
+                      final scan = _recentScans[idx];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: AppTheme.backgroundLight,
+                                borderRadius: BorderRadius.circular(10),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
+                              child: Center(
                                 child: Text(
-                                  scan['name'] ?? '',
-                                  style: theme.textTheme.titleSmall,
+                                  (idx + 1).toString(),
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.textPrimary,
+                                  ),
                                 ),
                               ),
-                              Text(
-                                scan['time'] ?? '',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: AppTheme.textTertiary,
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Text(
+                                scan['name'] ?? 'Student',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                            Text(
+                              scan['time'] ?? '',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: AppTheme.textTertiary,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
+                      );
+                    },
+                  ),
               ],
             ),
           ),
@@ -492,76 +678,23 @@ class _StartSessionScreenState extends State<StartSessionScreen>
           // ── Stop Session Button ──
           SizedBox(
             width: double.infinity,
-            height: 52,
+            height: 56,
             child: ElevatedButton.icon(
               onPressed: _endSession,
-              icon: const Icon(Icons.stop_circle, size: 22),
+              icon: const Icon(Icons.stop_circle_outlined, size: 24),
               label: const Text('Stop Session'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.dangerColor,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 elevation: 4,
                 shadowColor: AppTheme.dangerColor.withOpacity(0.3),
               ),
             ),
           ),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
-}
-
-class _LiveStatCard extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String value;
-  final String label;
-
-  const _LiveStatCard({
-    required this.icon,
-    required this.iconColor,
-    required this.value,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 22, color: iconColor),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: AppTheme.textTertiary,
-            ),
-            textAlign: TextAlign.center,
-          ),
+          const SizedBox(height: 20),
         ],
       ),
     );

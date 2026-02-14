@@ -37,8 +37,16 @@ const requireStudent = (req, res, next) => {
     next();
 };
 
+const requireAdmin = (req, res, next) => {
+    if (req.user.role !== 'ADMIN') {
+        return res.status(403).json({ message: 'Access denied. Administrator only.' });
+    }
+    next();
+};
+
 module.exports = {
     authMiddleware,
     requireFaculty,
     requireStudent,
+    requireAdmin,
 };

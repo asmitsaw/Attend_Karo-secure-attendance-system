@@ -8,7 +8,7 @@ class AppConstants {
   static const double locationAccuracyThreshold = 30.0; // meters
 
   // QR Code
-  static const int qrValidityDuration = 10; // seconds
+  static const int qrValidityDuration = 30; // seconds
   static const int qrRefreshInterval = 10; // seconds
 
   // Session
@@ -24,6 +24,7 @@ class AppConstants {
   // User Roles
   static const String roleFaculty = 'FACULTY';
   static const String roleStudent = 'STUDENT';
+  static const String roleAdmin = 'ADMIN';
 
   // Attendance Status
   static const String statusPresent = 'PRESENT';

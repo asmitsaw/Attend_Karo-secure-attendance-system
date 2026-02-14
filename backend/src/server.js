@@ -5,6 +5,8 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth');
 const facultyRoutes = require('./routes/faculty');
 const studentRoutes = require('./routes/student');
+const displayRoutes = require('./routes/display');
+const adminRoutes = require('./routes/admin');
 const { PORT } = require('./config/constants');
 
 const app = express();
@@ -22,8 +24,10 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/faculty', facultyRoutes);
 app.use('/api/student', studentRoutes);
+app.use('/api/display', displayRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

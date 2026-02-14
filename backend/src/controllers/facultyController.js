@@ -1,14 +1,28 @@
 const db = require('../config/database');
 const { generateQRData } = require('../utils/qr');
+const crypto = require('crypto');
 const csv = require('csv-parser');
 const fs = require('fs');
+
+/**
+ * Generate a unique 6-character session code (e.g. A3X9K2)
+ */
+function generateSessionCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I,O,0,1 to avoid confusion
+    let code = '';
+    const bytes = crypto.randomBytes(6);
+    for (let i = 0; i < 6; i++) {
+        code += chars[bytes[i] % chars.length];
+    }
+    return code;
+}
 
 /**
  * Create a new class
  */
 async function createClass(req, res) {
     try {
-        const { subject, department, semester, section } = req.body;
+        const { subject, department, semester, section, batchId } = req.body;
         const facultyId = req.user.userId;
 
         if (!subject || !department || !semester || !section) {
@@ -22,12 +36,40 @@ async function createClass(req, res) {
             [subject, department, semester, section, facultyId]
         );
 
+        const newClass = result.rows[0];
+
+        // Enroll students if batchId is provided
+        if (batchId) {
+            await db.query(
+                `INSERT INTO class_enrollments (class_id, student_id)
+                 SELECT $1, id FROM students WHERE batch_id = $2
+                 ON CONFLICT DO NOTHING`,
+                [newClass.id, batchId]
+            );
+        }
+
         res.status(201).json({
             message: 'Class created successfully',
-            class: result.rows[0],
+            class: newClass,
         });
     } catch (error) {
         console.error('Create class error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+}
+
+/**
+ * Get available academic batches
+ */
+async function getAdminBatches(req, res) {
+    try {
+        const result = await db.query(
+            `SELECT id, batch_name, department, section, start_year 
+             FROM academic_batches ORDER BY created_at DESC`
+        );
+        res.json({ batches: result.rows });
+    } catch (error) {
+        console.error('Get admin batches error:', error);
         res.status(500).json({ message: 'Server error' });
     }
 }
@@ -114,7 +156,7 @@ async function uploadStudents(req, res) {
 }
 
 /**
- * Start attendance session
+ * Start attendance session — generates unique session code
  */
 async function startSession(req, res) {
     try {
@@ -123,7 +165,7 @@ async function startSession(req, res) {
 
         // Verify class belongs to faculty
         const classCheck = await db.query(
-            'SELECT id FROM classes WHERE id = $1 AND faculty_id = $2',
+            'SELECT id, subject FROM classes WHERE id = $1 AND faculty_id = $2',
             [classId, facultyId]
         );
 
@@ -131,17 +173,30 @@ async function startSession(req, res) {
             return res.status(403).json({ message: 'Class not found or unauthorized' });
         }
 
-        // Create session
+        // Generate unique session code (retry if collision)
+        let sessionCode;
+        let attempts = 0;
+        while (attempts < 5) {
+            sessionCode = generateSessionCode();
+            const existing = await db.query(
+                'SELECT id FROM attendance_sessions WHERE session_code = $1 AND is_active = true',
+                [sessionCode]
+            );
+            if (existing.rows.length === 0) break;
+            attempts++;
+        }
+
+        // Create session with code
         const result = await db.query(
-            `INSERT INTO attendance_sessions (class_id, start_time, latitude, longitude, radius, qr_signature_key)
-       VALUES ($1, NOW(), $2, $3, $4, gen_random_uuid())
+            `INSERT INTO attendance_sessions (class_id, start_time, latitude, longitude, radius, qr_signature_key, session_code)
+       VALUES ($1, NOW(), $2, $3, $4, gen_random_uuid(), $5)
        RETURNING *`,
-            [classId, latitude, longitude, radius]
+            [classId, latitude, longitude, radius, sessionCode]
         );
 
         const session = result.rows[0];
 
-        // Generate QR data
+        // Generate initial QR data
         const qrData = generateQRData(session.id);
 
         res.status(201).json({
@@ -150,6 +205,7 @@ async function startSession(req, res) {
                 id: session.id,
                 classId: session.class_id,
                 startTime: session.start_time,
+                sessionCode: session.session_code,
                 qrData,
             },
         });
@@ -271,10 +327,78 @@ async function getAnalytics(req, res) {
     }
 }
 
+/**
+ * Get all classes for the logged-in faculty
+ */
+async function getClasses(req, res) {
+    try {
+        const facultyId = req.user.userId;
+        console.log('📚 getClasses called for facultyId:', facultyId);
+
+        const result = await db.query(
+            `SELECT id, subject, department, semester, section, created_at
+             FROM classes WHERE faculty_id = $1 ORDER BY created_at DESC`,
+            [facultyId]
+        );
+
+        console.log('📚 Found', result.rows.length, 'classes:', JSON.stringify(result.rows));
+        res.json({ classes: result.rows });
+    } catch (error) {
+        console.error('Get classes error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+}
+
+/**
+ * Get live session count and student list
+ */
+async function getLiveCount(req, res) {
+    try {
+        const { sessionId } = req.params;
+        const facultyId = req.user.userId;
+
+        // Verify session belongs to faculty
+        // (Optional: strict check if session belongs to faculty's class)
+
+        const students = await db.query(
+            `SELECT u.name, s.roll_number, r.marked_at as timestamp
+             FROM attendance_records r
+             JOIN students s ON r.student_id = s.id
+             JOIN users u ON s.id = u.id
+             WHERE r.session_id = $1 AND r.status = 'PRESENT'
+             ORDER BY r.marked_at DESC`,
+            [sessionId]
+        );
+
+        res.json({
+            count: students.rows.length,
+            students: students.rows,
+        });
+    } catch (error) {
+        console.error('Get live count error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+}
+
+
+/**
+ * Download sample CSV template
+ */
+async function getSampleCSV(req, res) {
+    const csvContent = 'Roll Number,Student Name,Username\n101,John Doe,john.doe\n102,Jane Smith,jane.smith';
+    res.header('Content-Type', 'text/csv');
+    res.attachment('students_template.csv');
+    res.send(csvContent);
+}
+
 module.exports = {
     createClass,
     uploadStudents,
     startSession,
     endSession,
     getAnalytics,
+    getClasses,
+    getLiveCount,
+    getSampleCSV,
+    getAdminBatches,
 };

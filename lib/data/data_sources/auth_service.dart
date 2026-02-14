@@ -14,12 +14,20 @@ class AuthService {
     _dio.options.receiveTimeout = const Duration(seconds: 30);
   }
 
-  /// Login with username and password
-  Future<Map<String, dynamic>> login(String username, String password) async {
+  /// Login with username and password, optionally deviceId
+  Future<Map<String, dynamic>> login(
+    String username,
+    String password, {
+    String? deviceId,
+  }) async {
     try {
       final response = await _dio.post(
         ApiEndpoints.login,
-        data: {'username': username, 'password': password},
+        data: {
+          'username': username,
+          'password': password,
+          if (deviceId != null) 'deviceId': deviceId,
+        },
       );
 
       if (response.statusCode == 200) {

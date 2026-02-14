@@ -41,6 +41,34 @@ async function login(req, res) {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
+        // [New] Device Binding Logic for Students
+        if (user.role === 'STUDENT') {
+            const { deviceId } = req.body;
+            if (deviceId) {
+                // Check stored device_id in students table
+                // Note: user.id is the student.id (1:1 relation)
+                const studentRes = await db.query('SELECT device_id FROM students WHERE id = $1', [user.id]);
+
+                if (studentRes.rows.length > 0) {
+                    const storedDeviceId = studentRes.rows[0].device_id;
+
+                    if (!storedDeviceId) {
+                        // First time login: Bind Device
+                        await db.query('UPDATE students SET device_id = $1, device_bound_at = NOW() WHERE id = $2', [deviceId, user.id]);
+                        console.log(`📱 Device bound for ${username}: ${deviceId}`);
+                    } else if (storedDeviceId !== deviceId) {
+                        // Mismatch
+                        console.log(`❌ Device mismatch for ${username}. Stored: ${storedDeviceId}, Provided: ${deviceId}`);
+                        return res.status(403).json({ message: 'Login restricted to registered device only. Contact Admin to reset.' });
+                    } else {
+                        console.log(`✅ Device verified for ${username}`);
+                    }
+                }
+            } else {
+                console.warn(`⚠️ Student ${username} logged in without deviceId`);
+            }
+        }
+
         // Generate JWT
         const token = jwt.sign(
             { userId: user.id, role: user.role },

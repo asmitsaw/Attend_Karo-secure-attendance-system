@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../data/models/user_model.dart';
 import '../faculty/faculty_dashboard.dart';
 import '../student/student_dashboard.dart';
+import '../admin/admin_dashboard_screen.dart';
 import 'auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -69,9 +70,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       if (user != null) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (context) => user.role == UserRole.faculty
-                ? const FacultyDashboard()
-                : const StudentDashboard(),
+            builder: (context) {
+              if (user.role == UserRole.admin) {
+                return const AdminDashboardScreen();
+              } else if (user.role == UserRole.faculty) {
+                return const FacultyDashboard();
+              } else {
+                return const StudentDashboard();
+              }
+            },
           ),
         );
       }

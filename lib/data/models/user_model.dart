@@ -1,6 +1,7 @@
 enum UserRole {
   faculty,
-  student;
+  student,
+  admin;
 
   String toJson() => name.toUpperCase();
 
@@ -10,6 +11,8 @@ enum UserRole {
         return UserRole.faculty;
       case 'STUDENT':
         return UserRole.student;
+      case 'ADMIN':
+        return UserRole.admin;
       default:
         throw ArgumentError('Invalid role: $json');
     }
