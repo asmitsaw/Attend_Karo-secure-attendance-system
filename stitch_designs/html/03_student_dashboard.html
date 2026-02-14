@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Student Dashboard - Attend Karo</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+            extend: {
+                colors: {
+                "primary": "#19287b",
+                "background-light": "#f6f6f8",
+                "background-dark": "#121420",
+                "deep-purple": "#6200EA", // Requested accent color
+                },
+                fontFamily: {
+                "display": ["Lexend", "sans-serif"]
+                },
+                borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
+            },
+            },
+        }
+    </script>
+<style>
+        /* Smooth scrolling */
+        html { scroll-behavior: smooth; }
+        /* Hide scrollbar for clean mobile look */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-gray-800 dark:text-gray-100 min-h-screen flex justify-center">
+<!-- Mobile Container -->
+<div class="w-full max-w-md bg-background-light dark:bg-background-dark min-h-screen relative flex flex-col pb-20 shadow-2xl overflow-hidden">
+<!-- Header Section -->
+<header class="pt-12 px-6 pb-6 flex justify-between items-center bg-white dark:bg-gray-900 sticky top-0 z-20 shadow-sm rounded-b-3xl">
+<div class="flex items-center space-x-4">
+<div class="relative">
+<img alt="Profile Avatar" class="w-12 h-12 rounded-full border-2 border-primary object-cover" data-alt="Young male student portrait avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDZdBbxTcXfW9ZgzWoyQiUncxgjntY-rbzN_fNs-N6iHPlQfrZVp8bWbEAUMcQLLO-0j9YHbuKCJE8OJeXgs0_jZZJQPO7NWda36MN-8sCM0X5fPwusrt_cZu_l9D6fXYdWnt3fmMtpTAGi0i_7AvKMowlCc6bhxQXQwXm6IRDW4w3m8QaG1OXOOx9hMXUznkqdGb9gRy-xArFj1t0dRHwNemuipIx7sym6p-xkzgCo708BZ2-1qvuuJPqD1HIAqw5oiz4LOXsnbWVl"/>
+<div class="absolute -bottom-1 -right-1 bg-green-500 w-4 h-4 rounded-full border-2 border-white dark:border-gray-900 flex items-center justify-center">
+<span class="material-icons-round text-[10px] text-white">shield</span>
+</div>
+</div>
+<div>
+<p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Good Morning,</p>
+<h1 class="text-xl font-bold text-primary dark:text-white leading-tight">Alex Johnson</h1>
+</div>
+</div>
+<button class="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-600 dark:text-gray-300">
+<span class="material-icons-round text-2xl">notifications_none</span>
+<span class="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border border-white dark:border-gray-900"></span>
+</button>
+</header>
+<!-- Main Content Scroll Area -->
+<main class="flex-1 overflow-y-auto no-scrollbar px-6 pt-6 space-y-8">
+<!-- Active Session Section -->
+<section>
+<div class="flex justify-between items-end mb-4">
+<h2 class="text-lg font-bold text-primary dark:text-white">Active Session</h2>
+<span class="text-xs font-semibold px-2 py-1 bg-green-100 text-green-700 rounded-full animate-pulse">Live Now</span>
+</div>
+<div class="bg-gradient-to-br from-primary to-[#2a3c9e] rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+<!-- Abstract Background Pattern -->
+<div class="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+<div class="absolute bottom-0 left-0 w-24 h-24 bg-white opacity-5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
+<div class="relative z-10">
+<div class="flex justify-between items-start mb-6">
+<div>
+<h3 class="text-2xl font-bold mb-1">Computer Networks</h3>
+<p class="text-blue-200 text-sm flex items-center gap-1">
+<span class="material-icons-round text-sm">room</span> Room 302, Engineering Block
+                                </p>
+</div>
+<div class="text-center bg-white/10 backdrop-blur-md rounded-lg p-2">
+<span class="block text-xs text-blue-200">Ends in</span>
+<span class="block text-xl font-bold font-mono">15m</span>
+</div>
+</div>
+<!-- CTA Button -->
+<button class="w-full bg-deep-purple hover:bg-[#5000ca] text-white font-semibold py-4 px-6 rounded-xl shadow-lg flex items-center justify-center gap-3 transition-transform active:scale-95 group">
+<span class="material-icons-round bg-white/20 p-1 rounded-md group-hover:bg-white/30 transition-colors">qr_code_scanner</span>
+<span>Scan QR to Mark Attendance</span>
+</button>
+<div class="mt-4 flex items-center justify-center gap-2 text-xs text-blue-200 opacity-80">
+<span class="material-icons-round text-sm">verified_user</span>
+                            Device location verified
+                        </div>
+</div>
+</div>
+</section>
+<!-- Course Stats Section -->
+<section>
+<div class="flex justify-between items-center mb-4">
+<h2 class="text-lg font-bold text-primary dark:text-white">Your Courses</h2>
+<button class="text-sm font-medium text-deep-purple hover:underline">View All</button>
+</div>
+<div class="space-y-4">
+<!-- Card 1: Good Attendance -->
+<div class="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-primary dark:text-indigo-300 flex items-center justify-center font-bold text-lg">
+                                DS
+                            </div>
+<div>
+<h4 class="font-bold text-gray-800 dark:text-gray-100">Data Structures</h4>
+<p class="text-xs text-gray-500 dark:text-gray-400">CS-201 • 34/40 Sessions</p>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="text-lg font-bold text-green-600">85%</span>
+<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Safe</span>
+</div>
+</div>
+<!-- Card 2: Critical Attendance -->
+<div class="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-between relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-red-500"></div>
+<div class="flex items-center gap-4 pl-2">
+<div class="w-12 h-12 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 flex items-center justify-center font-bold text-lg">
+                                OS
+                            </div>
+<div>
+<h4 class="font-bold text-gray-800 dark:text-gray-100">Operating Systems</h4>
+<p class="text-xs text-gray-500 dark:text-gray-400">CS-204 • 26/40 Sessions</p>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="text-lg font-bold text-red-600">65%</span>
+<span class="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">Critical</span>
+</div>
+</div>
+<!-- Card 3: Excellent Attendance -->
+<div class="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-300 flex items-center justify-center font-bold text-lg">
+                                LA
+                            </div>
+<div>
+<h4 class="font-bold text-gray-800 dark:text-gray-100">Linear Algebra</h4>
+<p class="text-xs text-gray-500 dark:text-gray-400">MA-102 • 38/41 Sessions</p>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="text-lg font-bold text-teal-600">92%</span>
+<span class="text-[10px] bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-medium">Excellent</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Quick Stats/Info -->
+<section class="grid grid-cols-2 gap-4 pb-4">
+<div class="bg-primary/5 dark:bg-white/5 p-4 rounded-xl flex flex-col items-center text-center">
+<span class="material-icons-round text-primary dark:text-white mb-2 text-2xl">event_available</span>
+<span class="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Present</span>
+<span class="text-xl font-bold text-gray-800 dark:text-white">98</span>
+</div>
+<div class="bg-primary/5 dark:bg-white/5 p-4 rounded-xl flex flex-col items-center text-center">
+<span class="material-icons-round text-primary dark:text-white mb-2 text-2xl">event_busy</span>
+<span class="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Absent</span>
+<span class="text-xl font-bold text-gray-800 dark:text-white">12</span>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation -->
+<nav class="absolute bottom-0 w-full bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 px-6 py-3 flex justify-between items-center z-30 pb-6 rounded-t-3xl shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
+<button class="flex flex-col items-center gap-1 text-primary dark:text-white">
+<span class="material-icons-round">dashboard</span>
+<span class="text-[10px] font-medium">Home</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-gray-400 hover:text-primary dark:hover:text-white transition-colors">
+<span class="material-icons-round">calendar_today</span>
+<span class="text-[10px] font-medium">Schedule</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-gray-400 hover:text-primary dark:hover:text-white transition-colors">
+<span class="material-icons-round">bar_chart</span>
+<span class="text-[10px] font-medium">Reports</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-gray-400 hover:text-primary dark:hover:text-white transition-colors">
+<span class="material-icons-round">person</span>
+<span class="text-[10px] font-medium">Profile</span>
+</button>
+</nav>
+</div>
+</body></html>

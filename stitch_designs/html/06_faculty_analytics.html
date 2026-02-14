@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Faculty Analytics Dashboard - Attend Karo</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#19287b",
+                        "primary-light": "#3042a3",
+                        "primary-dark": "#0f1a54",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#121420",
+                        "vivid-green": "#00C853",
+                        "crimson-red": "#D50000",
+                        "neutral-surface": "#ffffff",
+                        "dark-surface": "#1e2235",
+                    },
+                    fontFamily: {
+                        "display": ["Lexend", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(25, 40, 123, 0.08)',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for clean mobile look */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        /* Simulated Chart Styles */
+        .chart-grid {
+            background-image: linear-gradient(to top, rgba(25, 40, 123, 0.05) 1px, transparent 1px);
+            background-size: 100% 40px;
+        }
+        
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #19287b;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #19287b;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-gray-800 dark:text-gray-100 antialiased selection:bg-primary/30 min-h-screen">
+<!-- Mobile Container -->
+<div class="max-w-md mx-auto bg-background-light dark:bg-background-dark min-h-screen relative shadow-2xl overflow-hidden flex flex-col">
+<!-- Header Section -->
+<header class="bg-primary text-white pt-12 pb-6 px-6 rounded-b-3xl shadow-lg z-20 relative">
+<div class="flex justify-between items-center mb-6">
+<div>
+<h1 class="text-2xl font-bold tracking-tight">Faculty Analytics</h1>
+<p class="text-primary-light/80 text-sm font-medium">Computer Science Dept.</p>
+</div>
+<div class="relative">
+<img alt="Professor Profile Avatar" class="w-10 h-10 rounded-full border-2 border-primary-light shadow-md" data-alt="Professor profile avatar image" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCYybhqGDqpFSgi4Bmuoj_2HAb6QEbNcZi4aS3id1kZky9NO0SkLXGFHUSwRN8RonWUBI2hB2FfiDjztlcCw5b3R8e7ubf0wMpuTqXKNSSaP_4TYRSLmpN-tLj-29ywLb0wTuHgNOmZPt4PuWybedTuYpeZsFcotgTUUzyUKalL0tJi0eIQslvKKmo4CGIv655TH2vuZED55hJHP7s2TCrA0GI8Y9Uj-l-oxVMkfUWUt1avUeZyULZIofmxFd3jZVaB3FVcUVs1ofuF"/>
+<span class="absolute bottom-0 right-0 w-3 h-3 bg-vivid-green border-2 border-primary rounded-full"></span>
+</div>
+</div>
+<!-- Date Filter Pill -->
+<div class="flex items-center justify-between">
+<button class="bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-colors px-4 py-2 rounded-full flex items-center space-x-2 text-sm border border-white/10">
+<span class="material-icons-round text-sm text-white/90">calendar_today</span>
+<span>Last 7 Days</span>
+<span class="material-icons-round text-sm text-white/60">expand_more</span>
+</button>
+<button class="bg-white/10 p-2 rounded-full backdrop-blur-sm hover:bg-white/20 transition-colors">
+<span class="material-icons-round text-white">filter_list</span>
+</button>
+</div>
+</header>
+<!-- Main Scrollable Content -->
+<main class="flex-1 overflow-y-auto no-scrollbar pb-24 px-5 pt-4 space-y-6">
+<!-- KPI Cards Row -->
+<div class="grid grid-cols-3 gap-3">
+<div class="bg-white dark:bg-dark-surface p-3 rounded-xl shadow-soft border border-primary/5 flex flex-col items-center text-center">
+<div class="text-xs text-gray-500 dark:text-gray-400 font-medium mb-1">Present</div>
+<div class="text-xl font-bold text-primary dark:text-blue-300">842</div>
+<div class="text-[10px] text-vivid-green font-medium flex items-center mt-1">
+<span class="material-icons-round text-[10px] mr-0.5">trending_up</span> +5%
+                    </div>
+</div>
+<div class="bg-white dark:bg-dark-surface p-3 rounded-xl shadow-soft border border-primary/5 flex flex-col items-center text-center">
+<div class="text-xs text-gray-500 dark:text-gray-400 font-medium mb-1">Avg Rate</div>
+<div class="text-xl font-bold text-primary dark:text-blue-300">92%</div>
+<div class="text-[10px] text-gray-400 font-medium mt-1">Stable</div>
+</div>
+<div class="bg-white dark:bg-dark-surface p-3 rounded-xl shadow-soft border border-crimson-red/20 relative overflow-hidden flex flex-col items-center text-center">
+<div class="absolute inset-0 bg-crimson-red/5"></div>
+<div class="text-xs text-crimson-red font-medium mb-1 relative z-10">Proxies</div>
+<div class="text-xl font-bold text-crimson-red relative z-10">03</div>
+<div class="text-[10px] text-crimson-red/80 font-medium mt-1 relative z-10">Action Req.</div>
+</div>
+</div>
+<!-- Attendance Trends Chart -->
+<section class="bg-white dark:bg-dark-surface rounded-xl p-5 shadow-soft border border-primary/5">
+<div class="flex justify-between items-center mb-4">
+<h3 class="font-bold text-gray-800 dark:text-white flex items-center">
+<span class="w-1 h-4 bg-primary rounded-full mr-2"></span>
+                        Attendance Trends
+                    </h3>
+<button class="text-primary text-xs font-semibold uppercase tracking-wide">View All</button>
+</div>
+<div class="h-40 relative w-full chart-grid pt-4">
+<!-- Y Axis Labels -->
+<div class="absolute left-0 top-0 bottom-6 w-6 flex flex-col justify-between text-[10px] text-gray-400">
+<span>100%</span>
+<span>75%</span>
+<span>50%</span>
+<span>25%</span>
+</div>
+<!-- Chart Area -->
+<div class="ml-8 h-full relative">
+<!-- Line Path (SVG) -->
+<svg class="w-full h-full overflow-visible" preserveaspectratio="none" viewbox="0 0 100 100">
+<defs>
+<lineargradient id="gradientPrimary" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#19287b" stop-opacity="0.2"></stop>
+<stop offset="100%" stop-color="#19287b" stop-opacity="0"></stop>
+</lineargradient>
+</defs>
+<!-- Fill -->
+<path d="M0,70 Q20,50 40,60 T80,30 T100,20 L100,100 L0,100 Z" fill="url(#gradientPrimary)"></path>
+<!-- Stroke -->
+<path d="M0,70 Q20,50 40,60 T80,30 T100,20" fill="none" stroke="#19287b" stroke-linecap="round" stroke-width="2.5"></path>
+<!-- Data Point -->
+<circle cx="80" cy="30" fill="#00C853" r="3" stroke="white" stroke-width="1.5"></circle>
+</svg>
+</div>
+<!-- X Axis Labels -->
+<div class="ml-8 flex justify-between text-[10px] text-gray-400 mt-1">
+<span>Mon</span>
+<span>Tue</span>
+<span>Wed</span>
+<span>Thu</span>
+<span>Fri</span>
+</div>
+</div>
+</section>
+<!-- Late Scan Distribution & Heatmap Toggle -->
+<section class="grid grid-cols-1 gap-4">
+<!-- Late Scan Bar Chart -->
+<div class="bg-white dark:bg-dark-surface rounded-xl p-5 shadow-soft border border-primary/5">
+<h3 class="font-bold text-gray-800 dark:text-white text-sm mb-4">Late Scan Distribution</h3>
+<div class="flex items-end justify-between space-x-4 h-32">
+<!-- Bar 1 -->
+<div class="flex flex-col items-center flex-1 group">
+<div class="w-full bg-primary/10 dark:bg-primary/20 rounded-t-lg relative h-full flex items-end overflow-hidden group-hover:bg-primary/15 transition-colors">
+<div class="w-full bg-primary rounded-t-lg" style="height: 65%;"></div>
+</div>
+<span class="text-[10px] text-gray-500 mt-2 font-medium">0-5m</span>
+</div>
+<!-- Bar 2 -->
+<div class="flex flex-col items-center flex-1 group">
+<div class="w-full bg-primary/10 dark:bg-primary/20 rounded-t-lg relative h-full flex items-end overflow-hidden group-hover:bg-primary/15 transition-colors">
+<div class="w-full bg-primary/60 rounded-t-lg" style="height: 30%;"></div>
+</div>
+<span class="text-[10px] text-gray-500 mt-2 font-medium">5-10m</span>
+</div>
+<!-- Bar 3 -->
+<div class="flex flex-col items-center flex-1 group">
+<div class="w-full bg-primary/10 dark:bg-primary/20 rounded-t-lg relative h-full flex items-end overflow-hidden group-hover:bg-primary/15 transition-colors">
+<div class="w-full bg-primary/30 rounded-t-lg" style="height: 15%;"></div>
+</div>
+<span class="text-[10px] text-gray-500 mt-2 font-medium">10m+</span>
+</div>
+</div>
+</div>
+<!-- Heatmap Toggle & Map Preview -->
+<div class="bg-white dark:bg-dark-surface rounded-xl overflow-hidden shadow-soft border border-primary/5">
+<div class="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
+<div class="flex items-center space-x-2">
+<span class="material-icons-round text-primary dark:text-primary-light">location_on</span>
+<span class="font-bold text-sm">Scan Heatmap</span>
+</div>
+<!-- Toggle Switch -->
+<div class="relative inline-block w-10 h-6 align-middle select-none transition duration-200 ease-in">
+<input class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer translate-x-1 translate-y-1 checked:translate-x-5 transition-transform duration-200" id="heatmap-toggle" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer peer-checked:bg-primary" for="heatmap-toggle"></label>
+</div>
+</div>
+<div class="relative h-32 w-full bg-gray-200">
+<img alt="Map showing campus heatmap" class="w-full h-full object-cover opacity-80" data-alt="Campus map with heatmap overlay" data-location="University Campus Map" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDOgYl0L1Y6IifEgH78WVjL6ud-JXe5EwdgOifImOT9n90JfMDhoXHviwgysgdxs9r6HynIpswiYJRNaRMGw6I9rJD5_nF0rxC2hykVMeLrD0JhqCEymm_2Fspl8mvVA5qWFGoiYGTBZPyQtrV8DwSHZO2LVg7hYLQqT9-h-KpRQ35jlgEhGYmI1hCK88p0P8M3UGHt0CyjZ92VcmeA-EGhcq8RRi3XhJBjnJ-Lo8qz47l4YExCEAyNrPVHwE_3VdqWs8TEGG1s0PCZ"/>
+<div class="absolute inset-0 bg-gradient-to-t from-white/90 to-transparent dark:from-dark-surface/90 flex items-end p-3">
+<p class="text-xs font-medium text-gray-600 dark:text-gray-300">High density in <span class="text-primary font-bold">Lecture Hall B</span></p>
+</div>
+<!-- Heatmap Overlay Dots -->
+<div class="absolute top-1/2 left-1/3 w-8 h-8 bg-vivid-green/40 rounded-full blur-sm"></div>
+<div class="absolute top-1/4 right-1/4 w-12 h-12 bg-primary/40 rounded-full blur-md"></div>
+</div>
+</div>
+</section>
+<!-- Security Logs Section (Crimson Red Theme) -->
+<section class="pb-6">
+<div class="flex items-center justify-between mb-3 px-1">
+<h3 class="font-bold text-gray-800 dark:text-white text-lg">Security Logs</h3>
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-crimson-red/10 text-crimson-red border border-crimson-red/20 uppercase tracking-wider">Live</span>
+</div>
+<div class="space-y-3">
+<!-- Log Item 1: Critical -->
+<div class="bg-white dark:bg-dark-surface p-4 rounded-xl shadow-sm border-l-4 border-crimson-red flex items-start space-x-3">
+<div class="bg-crimson-red/10 p-2 rounded-lg">
+<span class="material-icons-round text-crimson-red text-lg">phonelink_off</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<h4 class="font-bold text-sm text-gray-900 dark:text-white">Device Mismatch</h4>
+<span class="text-[10px] font-medium text-gray-400">10:42 AM</span>
+</div>
+<p class="text-xs text-gray-500 mt-1">Student: <span class="font-semibold text-gray-700 dark:text-gray-300">Rohan Das (CS-A)</span></p>
+<p class="text-[10px] text-crimson-red mt-1 font-medium bg-crimson-red/5 inline-block px-1.5 py-0.5 rounded">UUID not registered</p>
+</div>
+</div>
+<!-- Log Item 2: Warning -->
+<div class="bg-white dark:bg-dark-surface p-4 rounded-xl shadow-sm border-l-4 border-yellow-500 flex items-start space-x-3 opacity-90">
+<div class="bg-yellow-500/10 p-2 rounded-lg">
+<span class="material-icons-round text-yellow-600 text-lg">speed</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<h4 class="font-bold text-sm text-gray-900 dark:text-white">Rapid Scans</h4>
+<span class="text-[10px] font-medium text-gray-400">09:15 AM</span>
+</div>
+<p class="text-xs text-gray-500 mt-1">Location: <span class="font-semibold text-gray-700 dark:text-gray-300">Library Entrance</span></p>
+<p class="text-[10px] text-yellow-600 mt-1 font-medium">5 scans in 10s</p>
+</div>
+</div>
+<!-- Log Item 3: Critical -->
+<div class="bg-white dark:bg-dark-surface p-4 rounded-xl shadow-sm border-l-4 border-crimson-red flex items-start space-x-3">
+<div class="bg-crimson-red/10 p-2 rounded-lg">
+<span class="material-icons-round text-crimson-red text-lg">location_off</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<h4 class="font-bold text-sm text-gray-900 dark:text-white">Location Spoof</h4>
+<span class="text-[10px] font-medium text-gray-400">08:55 AM</span>
+</div>
+<p class="text-xs text-gray-500 mt-1">Student: <span class="font-semibold text-gray-700 dark:text-gray-300">Amit V. (ME-B)</span></p>
+<p class="text-[10px] text-crimson-red mt-1 font-medium bg-crimson-red/5 inline-block px-1.5 py-0.5 rounded">GPS mocking detected</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation -->
+<nav class="bg-white dark:bg-dark-surface border-t border-gray-100 dark:border-gray-800 px-6 py-3 absolute bottom-0 w-full shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)]">
+<div class="flex justify-between items-center">
+<button class="flex flex-col items-center space-y-1 text-gray-400 hover:text-primary transition-colors">
+<span class="material-icons-round text-2xl">home</span>
+<span class="text-[10px] font-medium">Home</span>
+</button>
+<button class="flex flex-col items-center space-y-1 text-primary dark:text-primary-light transition-colors">
+<span class="material-icons-round text-2xl">analytics</span>
+<span class="text-[10px] font-medium">Analytics</span>
+</button>
+<button class="bg-primary hover:bg-primary-dark transition-colors rounded-full p-3 -mt-8 shadow-lg shadow-primary/30 border-4 border-white dark:border-dark-surface">
+<span class="material-icons-round text-white text-xl">qr_code_scanner</span>
+</button>
+<button class="flex flex-col items-center space-y-1 text-gray-400 hover:text-primary transition-colors">
+<span class="material-icons-round text-2xl">notifications</span>
+<span class="text-[10px] font-medium">Alerts</span>
+</button>
+<button class="flex flex-col items-center space-y-1 text-gray-400 hover:text-primary transition-colors">
+<span class="material-icons-round text-2xl">person</span>
+<span class="text-[10px] font-medium">Profile</span>
+</button>
+</div>
+</nav>
+</div>
+</body></html>

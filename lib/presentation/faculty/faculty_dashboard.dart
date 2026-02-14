@@ -1,545 +1,713 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/theme/app_theme.dart';
 import '../auth/auth_provider.dart';
 import 'create_class_screen.dart';
 import 'start_session_screen.dart';
 import 'analytics_screen.dart';
 
-class FacultyDashboard extends ConsumerWidget {
+class FacultyDashboard extends ConsumerStatefulWidget {
   const FacultyDashboard({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FacultyDashboard> createState() => _FacultyDashboardState();
+}
+
+class _FacultyDashboardState extends ConsumerState<FacultyDashboard> {
+  int _currentNavIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final user = ref.watch(authProvider).user;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: AppTheme.backgroundLight,
       body: SafeArea(
-        child: Stack(
+        child: Column(
           children: [
-            // Main scrollable content
-            Column(
-              children: [
-                // Header (greeting + profile + logout)
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  child: Row(
+            // ── Header ──────────────────────────────────────
+            Container(
+              decoration: const BoxDecoration(
+                color: AppTheme.primaryColor,
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(28),
+                  bottomRight: Radius.circular(28),
+                ),
+              ),
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Date & Logout
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Good ${_timeOfDayGreeting()},',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.grey.shade600,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            user?.name != null
-                                ? 'Prof. ${user!.name}'
-                                : 'Professor',
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
+                      Text(
+                        _formattedDate(),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white.withOpacity(0.7),
+                          fontWeight: FontWeight.w400,
+                        ),
                       ),
                       Row(
                         children: [
+                          // Notification bell
+                          IconButton(
+                            onPressed: () {},
+                            icon: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Icon(
+                                  Icons.notifications_none,
+                                  color: Colors.white.withOpacity(0.85),
+                                  size: 24,
+                                ),
+                                Positioned(
+                                  right: -2,
+                                  top: -2,
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFFF5252),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                          const SizedBox(width: 8),
+                          // Logout
                           IconButton(
                             onPressed: () async {
                               await ref.read(authProvider.notifier).logout();
-                              if (context.mounted) {
-                                Navigator.of(context)
-                                    .pushReplacementNamed('/login');
-                              }
                             },
-                            icon: const Icon(Icons.logout),
-                            tooltip: 'Logout',
-                          ),
-                          const SizedBox(width: 4),
-                          CircleAvatar(
-                            radius: 20,
-                            backgroundColor:
-                                theme.primaryColor.withOpacity(0.15),
-                            child: Text(
-                              (user?.name.isNotEmpty ?? false)
-                                  ? user!.name[0].toUpperCase()
-                                  : 'F',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            icon: Icon(
+                              Icons.logout,
+                              color: Colors.white.withOpacity(0.85),
+                              size: 22,
                             ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            tooltip: 'Logout',
                           ),
                         ],
                       ),
                     ],
                   ),
-                ),
+                  const SizedBox(height: 8),
 
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 96),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  // Welcome name
+                  Text(
+                    'Welcome,',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: Colors.white.withOpacity(0.8),
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
+                  Text(
+                    user?.name ?? 'Professor',
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Secure Mode badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.successColor.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const SizedBox(height: 8),
-
-                        // Stats row (cards like in design)
-                        SizedBox(
-                          height: 120,
-                          child: ListView(
-                            scrollDirection: Axis.horizontal,
-                            children: [
-                              _StatCard(
-                                icon: Icons.class_outlined,
-                                label: 'Active Today',
-                                value: '3',
-                                iconBackgroundColor:
-                                    theme.primaryColor.withOpacity(0.1),
-                                iconColor: theme.primaryColor,
-                              ),
-                              _StatCard(
-                                icon: Icons.groups_outlined,
-                                label: 'Total Students',
-                                value: '142',
-                                iconBackgroundColor:
-                                    Colors.purple.withOpacity(0.08),
-                                iconColor: Colors.purple,
-                              ),
-                              _StatCard(
-                                icon: Icons.warning_amber_rounded,
-                                label: 'Proxy Alerts',
-                                value: '2',
-                                iconBackgroundColor:
-                                    Colors.orange.withOpacity(0.08),
-                                iconColor: Colors.orange,
-                              ),
-                            ],
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: AppTheme.successColor,
+                            shape: BoxShape.circle,
                           ),
                         ),
-
-                        const SizedBox(height: 24),
-
-                        // Recent classes header
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Recent Classes',
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                // Placeholder for full list
-                              },
-                              child: Text(
-                                'View All',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.primaryColor,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Ongoing class -> primary CTA: Start Attendance (StartSessionScreen)
-                        _ClassCard(
-                          statusLabel: 'Ongoing',
-                          statusColor: theme.primaryColor,
-                          title: 'CS101 - Data Structures',
-                          subtitle: 'B.Tech CS - Year 2',
-                          timeText: '09:00 AM',
-                          locationText: 'Room 304',
-                          primaryButtonText: 'Start Attendance',
-                          primaryIcon: Icons.qr_code_scanner_rounded,
-                          onPrimaryPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const StartSessionScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Upcoming class -> view details (could reuse CreateClassScreen for now)
-                        _ClassCard(
-                          statusLabel: 'Upcoming',
-                          statusColor: Colors.grey.shade600,
-                          statusBackground: Colors.grey.shade200,
-                          title: 'CS202 - DBMS',
-                          subtitle: 'B.Tech CS - Year 3',
-                          timeText: '11:00 AM',
-                          locationText: 'Lab 2',
-                          primaryButtonText: 'View Details',
-                          primaryIcon: Icons.visibility_outlined,
-                          onPrimaryPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const CreateClassScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Completed class -> analytics
-                        _ClassCard(
-                          statusLabel: 'Completed',
-                          statusColor: Colors.green,
-                          statusBackground: Colors.green.withOpacity(0.1),
-                          title: 'CS305 - Network Security',
-                          subtitle: 'M.Tech - Year 1',
-                          timeText: 'Yesterday',
-                          locationText: 'Room 101',
-                          showFooter: true,
-                          footerText: '45/50 Present',
-                          footerActionText: 'View Report',
-                          onFooterActionPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const AnalyticsScreen(),
-                              ),
-                            );
-                          },
+                        const SizedBox(width: 6),
+                        Text(
+                          'Secure Mode Active',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: AppTheme.successColor,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(height: 20),
 
-            // Floating action button (create class)
-            Positioned(
-              right: 24,
-              bottom: 80,
-              child: FloatingActionButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const CreateClassScreen(),
-                    ),
-                  );
-                },
-                backgroundColor: theme.primaryColor,
-                child: const Icon(Icons.add_rounded, size: 28),
-              ),
-            ),
-
-            // Bottom navigation style bar (non-routing visual only for now)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
-                  border: Border(
-                    top: BorderSide(
-                      color: Colors.grey.shade300,
-                    ),
+                  // ── Quick Action Buttons ──
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _ActionCard(
+                          icon: Icons.qr_code_2,
+                          label: 'Create New Class',
+                          sublabel: 'Generate QR Code',
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const CreateClassScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _ActionCard(
+                          icon: Icons.sensors,
+                          label: 'Active Sessions',
+                          sublabel: '• 1 Live Now',
+                          sublabelColor: AppTheme.successColor,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const StartSessionScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _BottomNavItem(
-                      icon: Icons.dashboard_rounded,
-                      label: 'Dashboard',
-                      isActive: true,
-                      onTap: () {},
-                    ),
-                    _BottomNavItem(
-                      icon: Icons.menu_book_rounded,
-                      label: 'Classes',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const CreateClassScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    _BottomNavItem(
-                      icon: Icons.bar_chart_rounded,
-                      label: 'Analytics',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const AnalyticsScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
-String _timeOfDayGreeting() {
-  final hour = DateTime.now().hour;
-  if (hour < 12) return 'Morning';
-  if (hour < 17) return 'Afternoon';
-  return 'Evening';
-}
-
-class _StatCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color iconBackgroundColor;
-  final Color iconColor;
-
-  const _StatCard({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.iconBackgroundColor,
-    required this.iconColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      width: 150,
-      margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.black.withOpacity(0.04),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: iconBackgroundColor,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: iconColor, size: 22),
-          ),
-          Text(
-            value,
-            style: theme.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.grey.shade600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ClassCard extends StatelessWidget {
-  final String statusLabel;
-  final Color statusColor;
-  final Color? statusBackground;
-  final String title;
-  final String subtitle;
-  final String timeText;
-  final String locationText;
-  final String? primaryButtonText;
-  final IconData? primaryIcon;
-  final VoidCallback? onPrimaryPressed;
-  final bool showFooter;
-  final String? footerText;
-  final String? footerActionText;
-  final VoidCallback? onFooterActionPressed;
-
-  const _ClassCard({
-    required this.statusLabel,
-    required this.statusColor,
-    this.statusBackground,
-    required this.title,
-    required this.subtitle,
-    required this.timeText,
-    required this.locationText,
-    this.primaryButtonText,
-    this.primaryIcon,
-    this.onPrimaryPressed,
-    this.showFooter = false,
-    this.footerText,
-    this.footerActionText,
-    this.onFooterActionPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: Colors.black.withOpacity(0.04),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 20,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
+            // ── Scrollable Content ──
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: statusBackground ??
-                            statusColor.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        statusLabel.toUpperCase(),
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          fontSize: 10,
-                          color: statusColor,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.6,
+                    // ── Today's Classes ──
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Today's Classes",
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
+                        TextButton(
+                          onPressed: () {},
+                          child: Text(
+                            'See All',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: AppTheme.primaryColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
+
+                    // Class cards
+                    _TodayClassCard(
+                      time: '10:00 AM',
+                      title: 'Computer Networks',
+                      subtitle: 'CS-A (Batch 2024)',
+                      location: 'Lab Complex 2, Room 304',
+                      attendance: '49/52 Present',
+                      isActive: true,
+                      onStartAttendance: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const StartSessionScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    _TodayClassCard(
+                      time: '08:30 AM',
+                      title: 'Operating Systems',
+                      subtitle: 'CS-B (Batch 2024)',
+                      location: 'Room 201',
+                      attendance: '',
+                      isActive: false,
+                    ),
+
+                    const SizedBox(height: 28),
+
+                    // ── My Subjects ──
                     Text(
-                      title,
+                      'My Subjects',
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.grey.shade600,
-                      ),
+                    const SizedBox(height: 12),
+
+                    _SubjectTile(
+                      code: 'CN',
+                      title: 'Computer Networks',
+                      subtitle: 'CS-A • 3 Classes/Week',
+                      percentage: '92%',
+                      percentageColor: AppTheme.successColor,
                     ),
+                    const SizedBox(height: 10),
+                    _SubjectTile(
+                      code: 'OS',
+                      title: 'Operating Systems',
+                      subtitle: 'CS-B • 4 Classes/Week',
+                      percentage: '88%',
+                      percentageColor: AppTheme.warningColor,
+                    ),
+                    const SizedBox(height: 10),
+                    _SubjectTile(
+                      code: 'DS',
+                      title: 'Data Structures',
+                      subtitle: 'CS-A • 2 Classes/Week',
+                      percentage: '75%',
+                      percentageColor: AppTheme.dangerColor,
+                    ),
+                    const SizedBox(height: 24),
                   ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    timeText,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    locationText,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          if (primaryButtonText != null && onPrimaryPressed != null) ...[
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: onPrimaryPressed,
-                icon: Icon(primaryIcon ?? Icons.arrow_forward_rounded),
-                label: Text(primaryButtonText!),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(44),
                 ),
               ),
             ),
           ],
-          if (showFooter && (footerText != null || footerActionText != null))
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  if (footerText != null)
-                    Text(
-                      footerText!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.grey.shade600,
+        ),
+      ),
+
+      // ── Bottom Navigation ──
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 20,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _BottomNavItem(
+                  icon: Icons.home_rounded,
+                  label: 'Home',
+                  isActive: _currentNavIndex == 0,
+                  onTap: () => setState(() => _currentNavIndex = 0),
+                ),
+                _BottomNavItem(
+                  icon: Icons.bar_chart_rounded,
+                  label: 'Reports',
+                  isActive: _currentNavIndex == 1,
+                  onTap: () {
+                    setState(() => _currentNavIndex = 1);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AnalyticsScreen(),
                       ),
+                    );
+                  },
+                ),
+                // Center fab placeholder
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const StartSessionScreen(),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [AppTheme.primaryColor, AppTheme.accentPurple],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primaryColor.withOpacity(0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                  if (footerActionText != null &&
-                      onFooterActionPressed != null)
-                    TextButton(
-                      onPressed: onFooterActionPressed,
+                    child: const Icon(
+                      Icons.qr_code_scanner,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                ),
+                _BottomNavItem(
+                  icon: Icons.people_rounded,
+                  label: 'Students',
+                  isActive: _currentNavIndex == 3,
+                  onTap: () => setState(() => _currentNavIndex = 3),
+                ),
+                _BottomNavItem(
+                  icon: Icons.person_rounded,
+                  label: 'Profile',
+                  isActive: _currentNavIndex == 4,
+                  onTap: () => setState(() => _currentNavIndex = 4),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formattedDate() {
+    final now = DateTime.now();
+    const months = [
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    const days = [
+      '',
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+    return '${months[now.month]} ${now.day}, ${days[now.weekday]}';
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  Private Widgets
+// ═══════════════════════════════════════════════
+
+class _ActionCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String sublabel;
+  final Color? sublabelColor;
+  final VoidCallback? onTap;
+
+  const _ActionCard({
+    required this.icon,
+    required this.label,
+    required this.sublabel,
+    this.sublabelColor,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.15)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.18),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: Colors.white, size: 24),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              sublabel,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: sublabelColor ?? Colors.white.withOpacity(0.6),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TodayClassCard extends StatelessWidget {
+  final String time;
+  final String title;
+  final String subtitle;
+  final String location;
+  final String attendance;
+  final bool isActive;
+  final VoidCallback? onStartAttendance;
+
+  const _TodayClassCard({
+    required this.time,
+    required this.title,
+    required this.subtitle,
+    required this.location,
+    required this.attendance,
+    this.isActive = false,
+    this.onStartAttendance,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: isActive
+            ? Border.all(
+                color: AppTheme.primaryColor.withOpacity(0.3),
+                width: 1.5,
+              )
+            : Border.all(color: Colors.black.withOpacity(0.04)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Left time pill
+          Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? AppTheme.primaryColor.withOpacity(0.1)
+                      : AppTheme.backgroundLight,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  time,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: isActive
+                        ? AppTheme.primaryColor
+                        : AppTheme.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 14),
+          // Vertical divider
+          Container(
+            width: 3,
+            height: 60,
+            decoration: BoxDecoration(
+              color: isActive ? AppTheme.primaryColor : Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(99),
+            ),
+          ),
+          const SizedBox(width: 14),
+          // Content
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppTheme.textTertiary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.location_on,
+                      size: 14,
+                      color: AppTheme.textTertiary,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
                       child: Text(
-                        footerActionText!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.primaryColor,
-                          fontWeight: FontWeight.w600,
+                        location,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: AppTheme.textTertiary,
                         ),
                       ),
                     ),
+                  ],
+                ),
+                if (attendance.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.people,
+                        size: 14,
+                        color: AppTheme.successColor,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        attendance,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: AppTheme.successColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SubjectTile extends StatelessWidget {
+  final String code;
+  final String title;
+  final String subtitle;
+  final String percentage;
+  final Color percentageColor;
+
+  const _SubjectTile({
+    required this.code,
+    required this.title,
+    required this.subtitle,
+    required this.percentage,
+    required this.percentageColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withOpacity(0.04)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Code badge
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Center(
+              child: Text(
+                code,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: AppTheme.primaryColor,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: AppTheme.textTertiary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Percentage
+          Text(
+            '$percentage Avg',
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: percentageColor,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
@@ -561,32 +729,24 @@ class _BottomNavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    final Color activeColor = theme.primaryColor;
-    final Color inactiveColor = Colors.grey.shade500;
-
+    final color = isActive ? AppTheme.primaryColor : AppTheme.textTertiary;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(12),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 22,
-              color: isActive ? activeColor : inactiveColor,
-            ),
+            Icon(icon, size: 24, color: color),
             const SizedBox(height: 2),
             Text(
               label,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    fontSize: 10,
-                    color: isActive ? activeColor : inactiveColor,
-                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                  ),
+                fontSize: 10,
+                color: color,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+              ),
             ),
           ],
         ),

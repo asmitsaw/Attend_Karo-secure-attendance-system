@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Faculty Dashboard - Attend Karo</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#19287b",
+                        "secondary": "#00C853", // Vivid Green for active states
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#121420",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#1e2235",
+                    },
+                    fontFamily: {
+                        "display": ["Lexend", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom Scrollbar for horizontal lists */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .ios-notch-padding {
+            padding-top: max(env(safe-area-inset-top), 20px);
+        }
+        .ios-bottom-padding {
+            padding-bottom: max(env(safe-area-inset-bottom), 20px);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-100 font-display antialiased selection:bg-primary/30">
+<!-- Mobile Container -->
+<div class="mx-auto max-w-md bg-background-light dark:bg-background-dark min-h-screen relative shadow-2xl overflow-hidden flex flex-col">
+<!-- Header Section -->
+<header class="bg-primary text-white pt-12 pb-8 px-6 rounded-b-[2rem] shadow-lg relative overflow-hidden">
+<!-- Background Decoration -->
+<div class="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+<div class="absolute bottom-0 left-0 -mb-4 -ml-4 w-24 h-24 bg-secondary/20 rounded-full blur-xl"></div>
+<div class="relative z-10 flex justify-between items-start mb-6">
+<div>
+<p class="text-blue-100 text-sm font-light mb-1">Oct 24, Thursday</p>
+<h1 class="text-2xl font-bold">Welcome,<br/>Prof. Sharma</h1>
+</div>
+<div class="relative">
+<button class="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 transition-colors">
+<span class="material-icons-round text-white">notifications</span>
+</button>
+<span class="absolute top-2 right-2 w-2.5 h-2.5 bg-secondary rounded-full border-2 border-primary"></span>
+</div>
+</div>
+<!-- Anti-Proxy Status Badge -->
+<div class="inline-flex items-center gap-2 bg-black/20 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+<span class="material-icons-round text-secondary text-sm">security</span>
+<span class="text-xs font-medium text-blue-50">Secure Mode Active</span>
+</div>
+</header>
+<!-- Scrollable Main Content -->
+<main class="flex-1 overflow-y-auto hide-scrollbar pb-24 px-6 -mt-4">
+<!-- Quick Actions Grid -->
+<div class="grid grid-cols-2 gap-4 mb-8">
+<!-- Create New Class -->
+<button class="group bg-surface-light dark:bg-surface-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700/50 flex flex-col items-start hover:shadow-md transition-all active:scale-95">
+<div class="w-10 h-10 rounded-full bg-primary/10 dark:bg-primary/30 flex items-center justify-center mb-3 group-hover:bg-primary group-hover:text-white transition-colors text-primary dark:text-blue-300">
+<span class="material-icons-round">add</span>
+</div>
+<span class="text-sm font-semibold text-slate-700 dark:text-slate-200">Create New Class</span>
+<span class="text-xs text-slate-400 mt-1">Generate QR Code</span>
+</button>
+<!-- Active Sessions -->
+<button class="relative bg-surface-light dark:bg-surface-dark p-4 rounded-2xl shadow-sm border border-secondary/30 dark:border-secondary/20 flex flex-col items-start hover:shadow-md transition-all active:scale-95 overflow-hidden">
+<div class="absolute -right-2 -top-2 w-12 h-12 bg-secondary/10 rounded-full blur-xl"></div>
+<div class="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center mb-3 text-secondary animate-pulse">
+<span class="material-icons-round">sensors</span>
+</div>
+<span class="text-sm font-semibold text-slate-700 dark:text-slate-200">Active Sessions</span>
+<div class="flex items-center gap-1.5 mt-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="text-xs text-secondary font-medium">1 Live Now</span>
+</div>
+</button>
+</div>
+<!-- Today's Schedule -->
+<div class="mb-8">
+<div class="flex justify-between items-end mb-4">
+<h2 class="text-lg font-bold text-primary dark:text-blue-100">Today's Classes</h2>
+<a class="text-xs font-medium text-primary/70 dark:text-blue-300/70 hover:text-primary" href="#">See All</a>
+</div>
+<!-- Horizontal Scroll Container -->
+<div class="flex gap-4 overflow-x-auto hide-scrollbar pb-2 -mx-6 px-6 snap-x">
+<!-- Card 1: Upcoming -->
+<div class="snap-center shrink-0 w-64 bg-surface-light dark:bg-surface-dark p-4 rounded-2xl border-l-4 border-primary shadow-sm relative">
+<div class="flex justify-between items-start mb-3">
+<span class="px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700/50 text-xs font-semibold text-slate-600 dark:text-slate-300">10:00 AM</span>
+<span class="material-icons-round text-slate-300 text-lg">more_horiz</span>
+</div>
+<h3 class="font-bold text-slate-800 dark:text-white mb-1">Computer Networks</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 mb-3">CS-A (Batch 2024)</p>
+<div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+<span class="material-icons-round text-base">location_on</span>
+<span>Lab Complex 2, Room 304</span>
+</div>
+</div>
+<!-- Card 2: Completed -->
+<div class="snap-center shrink-0 w-64 bg-surface-light dark:bg-surface-dark p-4 rounded-2xl border-l-4 border-slate-300 dark:border-slate-600 shadow-sm opacity-80">
+<div class="flex justify-between items-start mb-3">
+<span class="px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700/50 text-xs font-semibold text-slate-500 line-through">08:30 AM</span>
+<span class="bg-secondary/10 text-secondary text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Done</span>
+</div>
+<h3 class="font-bold text-slate-600 dark:text-slate-300 mb-1">Operating Systems</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 mb-3">CS-B (Batch 2024)</p>
+<div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+<span class="material-icons-round text-base">people</span>
+<span>48/52 Present</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Managed Subjects List -->
+<div>
+<h2 class="text-lg font-bold text-primary dark:text-blue-100 mb-4">My Subjects</h2>
+<div class="space-y-3">
+<!-- Subject Item 1 -->
+<div class="bg-surface-light dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 flex items-center justify-between group cursor-pointer">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-primary dark:text-indigo-300">
+<span class="material-icons-round">dns</span>
+</div>
+<div>
+<h3 class="font-semibold text-slate-800 dark:text-slate-100 text-sm">Computer Networks</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">CS-A • 3 Classes/Week</p>
+</div>
+</div>
+<div class="flex flex-col items-end gap-1">
+<div class="text-xs font-bold text-secondary bg-secondary/10 px-2 py-0.5 rounded-full">92% Avg</div>
+<span class="material-icons-round text-slate-300 text-sm">arrow_forward_ios</span>
+</div>
+</div>
+<!-- Subject Item 2 -->
+<div class="bg-surface-light dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 flex items-center justify-between group cursor-pointer">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-primary dark:text-indigo-300">
+<span class="material-icons-round">memory</span>
+</div>
+<div>
+<h3 class="font-semibold text-slate-800 dark:text-slate-100 text-sm">Operating Systems</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">CS-B • 4 Classes/Week</p>
+</div>
+</div>
+<div class="flex flex-col items-end gap-1">
+<div class="text-xs font-bold text-secondary bg-secondary/10 px-2 py-0.5 rounded-full">88% Avg</div>
+<span class="material-icons-round text-slate-300 text-sm">arrow_forward_ios</span>
+</div>
+</div>
+<!-- Subject Item 3 -->
+<div class="bg-surface-light dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 flex items-center justify-between group cursor-pointer">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-primary dark:text-indigo-300">
+<span class="material-icons-round">code</span>
+</div>
+<div>
+<h3 class="font-semibold text-slate-800 dark:text-slate-100 text-sm">Data Structures</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">CS-A • 2 Classes/Week</p>
+</div>
+</div>
+<div class="flex flex-col items-end gap-1">
+<div class="text-xs font-bold text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">75% Avg</div>
+<span class="material-icons-round text-slate-300 text-sm">arrow_forward_ios</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Spacer -->
+<div class="h-8"></div>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="absolute bottom-0 left-0 w-full bg-surface-light dark:bg-surface-dark border-t border-slate-200 dark:border-slate-700/50 px-6 pt-3 ios-bottom-padding z-50 rounded-t-2xl shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
+<div class="flex justify-between items-center">
+<!-- Dashboard Tab (Active) -->
+<button class="flex flex-col items-center gap-1 text-primary dark:text-blue-400">
+<span class="material-icons-round text-2xl">dashboard</span>
+<span class="text-[10px] font-medium">Home</span>
+</button>
+<!-- Reports Tab -->
+<button class="flex flex-col items-center gap-1 text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-blue-300 transition-colors">
+<span class="material-icons-round text-2xl">insights</span>
+<span class="text-[10px] font-medium">Reports</span>
+</button>
+<!-- Floating FAB for Quick Add (Optional Centerpiece) -->
+<button class="flex items-center justify-center -mt-8 w-14 h-14 bg-primary rounded-full shadow-lg shadow-primary/40 hover:scale-105 transition-transform text-white border-4 border-background-light dark:border-background-dark">
+<span class="material-icons-round text-3xl">qr_code_scanner</span>
+</button>
+<!-- Students Tab -->
+<button class="flex flex-col items-center gap-1 text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-blue-300 transition-colors">
+<span class="material-icons-round text-2xl">school</span>
+<span class="text-[10px] font-medium">Students</span>
+</button>
+<!-- Profile Tab -->
+<button class="flex flex-col items-center gap-1 text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-blue-300 transition-colors">
+<span class="material-icons-round text-2xl">person</span>
+<span class="text-[10px] font-medium">Profile</span>
+</button>
+</div>
+</nav>
+</div>
+</body></html>

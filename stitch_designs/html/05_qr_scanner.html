@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Secure QR Scanner - Attend Karo</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#19287b",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#121420",
+                        "crimson": "#D50000",
+                        "success": "#4CAF50",
+                    },
+                    fontFamily: {
+                        "display": ["Lexend", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>/* Simulate Camera Viewfinder */
+.camera-view {
+    background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuC35CLcC7Zatu0GiU0gxusj3tLmrnc8R0kYh_dD2dh5bSHc5ujV2LKPsD3I0vnY_m2qD1cX0aHPeNxq7tWn3cgc91WjsKqK0fJFx9_ruz_E4hFB3j1qBlahbJyO9E5BTa3Hy6GjBsx4n5sEJmYwFeCvuPoRNaPIHr4rJ_L1mCU40jRQq04kGg7RotQLY7CkEqNaO8OhYTK6xqo7U95uYvRPOHccvV0aP6yo3WKue8QDFisOyvL7uyt9XX29bcmLF5jrCHMpv5L3kXCn);
+    background-size: cover;
+    background-position: center
+    }
+/* Scanner Scanning Animation */
+@keyframes scan {
+    0% {
+        top: 10%;
+        opacity: 0;
+        } 10% {
+        opacity: 1;
+        } 90% {
+        opacity: 1;
+        } 100% {
+        top: 90%;
+        opacity: 0;
+        }
+    }
+.scan-line {
+    position: absolute;
+    left: 10%;
+    width: 80%;
+    height: 2px;
+    background: #19287b;
+    box-shadow: 0 0 10px #19287b;
+    animation: scan 2s infinite linear;
+    border-radius: 50%
+    }
+/* Glassmorphism utility */
+.glass {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255, 255, 255, 0.3)
+    }
+.dark .glass {
+    background: rgba(18, 20, 32, 0.85);
+    border-top: 1px solid rgba(255, 255, 255, 0.1)
+    }
+/* Simulate iPhone Notch Area */
+.safe-area-top {
+    padding-top: max(env(safe-area-inset-top), 44px)
+    }
+.safe-area-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 34px)
+    }</style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display h-screen w-full overflow-hidden text-slate-800 dark:text-white flex justify-center items-center">
+<!-- Mobile Device Container -->
+<div class="relative w-full h-full max-w-md mx-auto bg-black overflow-hidden shadow-2xl">
+<!-- Camera Layer -->
+<div class="absolute inset-0 camera-view" data-alt="University classroom with whiteboard and desks">
+<!-- Dark Overlay with Cutout -->
+<div class="absolute inset-0 bg-black/60">
+<!-- Cutout Area (Masking simulated with borders or clip-path is tricky in pure tailwind without plugins, using stacking) -->
+<!-- We will create the cutout visually by using a clear div with a border -->
+</div>
+</div>
+<!-- Scanner UI Layer -->
+<div class="absolute inset-0 flex flex-col z-10">
+<!-- Top Navigation Bar -->
+<header class="safe-area-top px-6 pb-4 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent">
+<button class="p-2 rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition">
+<span class="material-icons text-xl">close</span>
+</button>
+<h1 class="text-white font-semibold text-lg tracking-wide">Scan Attendance</h1>
+<button class="p-2 rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition">
+<span class="material-icons text-xl">flash_on</span>
+</button>
+</header>
+<!-- Middle Scanner Area -->
+<main class="flex-1 flex flex-col items-center justify-center relative">
+<!-- Scanner Frame -->
+<div class="relative w-72 h-72 border-2 border-white/50 rounded-xl overflow-hidden shadow-[0_0_0_1000px_rgba(0,0,0,0.6)]">
+<!-- Corner Indicators -->
+<div class="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-lg"></div>
+<div class="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-lg"></div>
+<div class="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-lg"></div>
+<div class="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-lg"></div>
+<!-- Scanning Laser -->
+<div class="scan-line bg-primary shadow-[0_0_15px_rgba(25,40,123,0.8)]"></div>
+</div>
+<!-- Helper Text -->
+<p class="mt-8 text-white text-center text-sm font-medium bg-black/40 px-4 py-2 rounded-full backdrop-blur-sm">
+                    Align QR code within the frame
+                </p>
+</main>
+<!-- Bottom Status Footer (Glassmorphism) -->
+<footer class="glass rounded-t-3xl pb-8 pt-6 px-6 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] safe-area-bottom transform transition-transform duration-300">
+<div class="flex justify-between items-center mb-2">
+<h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider dark:text-gray-400">Security Check</h3>
+<span class="text-xs text-primary font-medium dark:text-blue-300 flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                        Live
+                    </span>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<!-- GPS Verified Status -->
+<div class="flex items-center gap-3 bg-background-light dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/10 shadow-sm">
+<div class="w-8 h-8 rounded-full bg-success/10 flex items-center justify-center text-success">
+<span class="material-icons text-lg">my_location</span>
+</div>
+<div class="flex flex-col">
+<span class="text-xs font-semibold text-slate-700 dark:text-slate-200">GPS Verified</span>
+<span class="text-[10px] text-slate-500 dark:text-slate-400">Within Campus</span>
+</div>
+<span class="material-icons text-success text-base ml-auto">check_circle</span>
+</div>
+<!-- Device Bound Status -->
+<div class="flex items-center gap-3 bg-background-light dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/10 shadow-sm">
+<div class="w-8 h-8 rounded-full bg-success/10 flex items-center justify-center text-success">
+<span class="material-icons text-lg">phonelink_lock</span>
+</div>
+<div class="flex flex-col">
+<span class="text-xs font-semibold text-slate-700 dark:text-slate-200">Device Bound</span>
+<span class="text-[10px] text-slate-500 dark:text-slate-400">Trusted ID</span>
+</div>
+<span class="material-icons text-success text-base ml-auto">check_circle</span>
+</div>
+</div>
+</footer>
+</div>
+<!-- ALERT OVERLAY (Hidden by default, un-comment 'hidden' class to see normal state, or remove 'hidden' to see alert) -->
+<!-- For demo purposes, I'll position this off-screen or hide it. Let's make it visible on hover of a hidden trigger for testing, or just include it as a conditional block representation -->
+<!-- To demonstrate the violation state described, I will create a toggle mechanism below or just overlay it partially to show I can build it. 
+             Since I cannot add JS, I will render the "Violation State" as a separate card below the main phone frame for the user to see, OR I can make the whole screen the violation state.
+             
+             Let's render the Normal State above. Below, I will provide the HTML code block for the "Violation Alert Overlay" that would be injected inside the `relative` container above if a violation occurred.
+        -->
+<!-- VIOLATION OVERLAY COMPONENT (Example: Add class 'flex' instead of 'hidden' to activate) -->
+<div class="hidden absolute inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center px-6 text-center animate-in fade-in zoom-in duration-200">
+<div class="bg-background-light dark:bg-background-dark w-full max-w-sm rounded-2xl p-6 shadow-2xl border-t-4 border-crimson relative overflow-hidden">
+<!-- Background decorative icon -->
+<span class="material-icons absolute -bottom-4 -right-4 text-9xl text-crimson/5 transform rotate-12 select-none pointer-events-none">gpp_bad</span>
+<div class="w-16 h-16 rounded-full bg-crimson/10 flex items-center justify-center mx-auto mb-4">
+<span class="material-icons text-3xl text-crimson">warning</span>
+</div>
+<h2 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Security Violation</h2>
+<p class="text-sm text-gray-600 dark:text-gray-300 mb-6">
+                    Proxy attempt blocked. Our system detected a <span class="font-bold text-crimson">Fake GPS</span> location signal. This incident has been logged.
+                </p>
+<button class="w-full py-3 bg-primary hover:bg-primary/90 text-white rounded-lg font-medium shadow-lg shadow-primary/30 transition-all active:scale-95 flex items-center justify-center gap-2">
+<span class="material-icons text-sm">home</span>
+                    Return to Home
+                </button>
+</div>
+</div>
+</div>
+<!-- Instructions for the user viewing this generated code -->
+<div class="fixed bottom-4 right-4 bg-white p-4 rounded-lg shadow-lg border border-gray-200 max-w-xs hidden md:block">
+<p class="text-xs text-gray-500 mb-2 font-bold uppercase">Designer Note:</p>
+<p class="text-xs text-gray-600">The "Security Violation" overlay is currently hidden in the code (`class="hidden"`). Remove the 'hidden' class on the violation div to preview the red alert state.</p>
+</div>
+</body></html>
