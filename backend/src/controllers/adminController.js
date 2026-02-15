@@ -375,11 +375,122 @@ async function getBatches(req, res) {
     }
 }
 
+/**
+ * Get device change requests
+ */
+async function getDeviceChangeRequests(req, res) {
+    try {
+        const result = await db.query(
+            `SELECT dcr.id, dcr.reason, dcr.status, dcr.created_at, dcr.reviewed_at,
+                    u.name as student_name, s.roll_number, u.department
+             FROM device_change_requests dcr
+             JOIN students s ON dcr.student_id = s.id
+             JOIN users u ON s.id = u.id
+             ORDER BY CASE WHEN dcr.status = 'PENDING' THEN 0 ELSE 1 END, dcr.created_at DESC`
+        );
+        res.json({ requests: result.rows });
+    } catch (error) {
+        console.error('Get device change requests error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+}
+
+/**
+ * Approve or reject device change request
+ */
+async function approveDeviceChange(req, res) {
+    try {
+        const { requestId } = req.params;
+        const { action } = req.body; // 'APPROVED' or 'REJECTED'
+        const adminId = req.user.userId;
+
+        if (!['APPROVED', 'REJECTED'].includes(action)) {
+            return res.status(400).json({ message: 'Invalid action. Must be APPROVED or REJECTED' });
+        }
+
+        // Get the request
+        const reqResult = await db.query(
+            'SELECT * FROM device_change_requests WHERE id = $1 AND status = $2',
+            [requestId, 'PENDING']
+        );
+
+        if (reqResult.rows.length === 0) {
+            return res.status(404).json({ message: 'Request not found or already processed' });
+        }
+
+        const request = reqResult.rows[0];
+
+        // Update request status
+        await db.query(
+            `UPDATE device_change_requests SET status = $1, reviewed_by = $2, reviewed_at = NOW() WHERE id = $3`,
+            [action, adminId, requestId]
+        );
+
+        // If approved, clear the student's device_id
+        if (action === 'APPROVED') {
+            await db.query(
+                `UPDATE students SET device_id = NULL, device_bound_at = NULL WHERE id = $1`,
+                [request.student_id]
+            );
+        }
+
+        res.json({
+            message: `Device change request ${action.toLowerCase()} successfully`,
+        });
+    } catch (error) {
+        console.error('Approve device change error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+}
+
 module.exports = {
     uploadStudents,
     updateBatch,
     downloadCredentials,
     regenerateBatchCredentials,
     deleteBatch,
-    getBatches
+    getBatches,
+    getDeviceChangeRequests,
+    approveDeviceChange,
+    getStudentsByBatch,
+    resetStudentDevice,
 };
+
+/**
+ * Get all students in a batch
+ */
+async function getStudentsByBatch(req, res) {
+    try {
+        const { batchId } = req.params;
+        const result = await db.query(
+            `SELECT s.id, s.roll_number, u.name, u.email, s.device_id, s.device_bound_at
+             FROM students s JOIN users u ON s.id = u.id
+             WHERE s.batch_id = $1 ORDER BY s.roll_number`,
+            [batchId]
+        );
+        res.json({ students: result.rows });
+    } catch (error) {
+        console.error('Get students by batch error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+}
+
+/**
+ * Manually reset a student's device binding
+ */
+async function resetStudentDevice(req, res) {
+    try {
+        const { studentId } = req.params;
+        await db.query('UPDATE students SET device_id = NULL, device_bound_at = NULL WHERE id = $1', [studentId]);
+
+        // Also ensure any pending request is marked processed
+        await db.query("UPDATE device_change_requests SET status = 'APPROVED', admin_comments='Manual Reset', reviewed_at=NOW() WHERE student_id = $1 AND status='PENDING'", [studentId]);
+
+        res.json({ message: 'Device binding reset successfully' });
+    } catch (error) {
+        console.error('Reset student device error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+}
+
+

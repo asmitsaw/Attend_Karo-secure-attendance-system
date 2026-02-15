@@ -11,7 +11,7 @@ class DeviceService {
   Future<String> getDeviceId() async {
     // Check if device ID already stored
     String? storedId = await _storage.read(key: AppConstants.keyDeviceId);
-    if (storedId != null) {
+    if (storedId != null && storedId != 'unknown_platform') {
       return storedId;
     }
 
@@ -21,9 +21,11 @@ class DeviceService {
     if (Platform.isAndroid) {
       final androidInfo = await _deviceInfo.androidInfo;
       deviceId = androidInfo.id; // androidId
-    } else if (Platform.isIOS) {
       final iosInfo = await _deviceInfo.iosInfo;
       deviceId = iosInfo.identifierForVendor ?? 'unknown';
+    } else if (Platform.isWindows) {
+      final windowsInfo = await _deviceInfo.windowsInfo;
+      deviceId = windowsInfo.deviceId;
     } else {
       deviceId = 'unknown_platform';
     }
@@ -43,7 +45,7 @@ class DeviceService {
       final iosInfo = await _deviceInfo.iosInfo;
       return !iosInfo.isPhysicalDevice;
     }
-    return false;
+    return false; // Assume physical/desktop for others
   }
 
   /// Get device info for logging
@@ -65,6 +67,14 @@ class DeviceService {
         'name': iosInfo.name,
         'ios_version': iosInfo.systemVersion,
         'is_physical': iosInfo.isPhysicalDevice,
+      };
+    } else if (Platform.isWindows) {
+      final windowsInfo = await _deviceInfo.windowsInfo;
+      return {
+        'platform': 'Windows',
+        'device_name': windowsInfo.computerName,
+        'os_version': '${windowsInfo.majorVersion}.${windowsInfo.minorVersion}',
+        'is_physical': true,
       };
     }
     return {'platform': 'Unknown'};

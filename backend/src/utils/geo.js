@@ -22,10 +22,12 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 
 /**
  * Check if student is within geo-fence
+ * @param {number} customRadius - optional per-session radius override
  */
-function isWithinGeofence(studentLat, studentLon, facultyLat, facultyLon) {
+function isWithinGeofence(studentLat, studentLon, facultyLat, facultyLon, customRadius) {
+    const radius = customRadius || GEO_FENCE_RADIUS;
     const distance = calculateDistance(studentLat, studentLon, facultyLat, facultyLon);
-    return distance <= GEO_FENCE_RADIUS;
+    return distance <= radius;
 }
 
 module.exports = {

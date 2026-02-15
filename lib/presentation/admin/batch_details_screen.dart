@@ -33,6 +33,9 @@ class _BatchDetailsScreenState extends State<BatchDetailsScreen> {
   bool _isRegenerating = false;
   bool _isDeleting = false;
 
+  List<Map<String, dynamic>> _students = [];
+  bool _isLoadingStudents = true;
+
   final _dio = Dio();
   final _storage = const FlutterSecureStorage();
 
@@ -71,6 +74,7 @@ class _BatchDetailsScreenState extends State<BatchDetailsScreen> {
     }
 
     _selectedSemester = b['current_semester'];
+    _loadStudents();
   }
 
   @override
@@ -328,6 +332,73 @@ class _BatchDetailsScreenState extends State<BatchDetailsScreen> {
     }
   }
 
+  Future<void> _loadStudents() async {
+    try {
+      final token = await _storage.read(key: AppConstants.keyAuthToken);
+      final response = await _dio.get(
+        '${ApiEndpoints.updateBatch}/${widget.batch['id']}/students',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      if (mounted) {
+        setState(() {
+          _students = List<Map<String, dynamic>>.from(
+            response.data['students'],
+          );
+          _isLoadingStudents = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Load students error: $e');
+      if (mounted) setState(() => _isLoadingStudents = false);
+    }
+  }
+
+  Future<void> _resetDevice(String studentId, String name) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reset Device Binding?'),
+        content: Text(
+          'This will unbind $name\'s device. They will be logged out and can bind a new device on next login.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final token = await _storage.read(key: AppConstants.keyAuthToken);
+      await _dio.put(
+        '${ApiEndpoints.baseUrl}/admin/students/$studentId/reset-device',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Device reset successfully')),
+        );
+      }
+      _loadStudents(); // Refresh list
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
   void _showDownloadSuccess(String path) {
     showDialog(
       context: context,
@@ -526,6 +597,53 @@ class _BatchDetailsScreenState extends State<BatchDetailsScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
               ),
+
+              const SizedBox(height: 32),
+              const Divider(),
+              const SizedBox(height: 16),
+
+              Text(
+                'Enrolled Students (${_students.length})',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 16),
+
+              if (_isLoadingStudents)
+                const Center(child: CircularProgressIndicator())
+              else if (_students.isEmpty)
+                const Center(child: Text('No students found.'))
+              else
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _students.length,
+                  itemBuilder: (context, index) {
+                    final student = _students[index];
+                    final isBound = student['device_id'] != null;
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        title: Text(student['name'] ?? 'Unknown'),
+                        subtitle: Text(student['roll_number'] ?? ''),
+                        trailing: isBound
+                            ? OutlinedButton(
+                                onPressed: () => _resetDevice(
+                                  student['id'],
+                                  student['name'],
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.orange,
+                                ),
+                                child: const Text('Reset Device'),
+                              )
+                            : const Text(
+                                'Unbound',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                      ),
+                    );
+                  },
+                ),
             ],
           ),
         ),

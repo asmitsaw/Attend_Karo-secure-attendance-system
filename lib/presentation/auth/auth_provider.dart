@@ -68,6 +68,9 @@ class AuthNotifier extends Notifier<AuthState> {
       } else if (Platform.isIOS) {
         final iosInfo = await deviceInfo.iosInfo;
         deviceId = iosInfo.identifierForVendor;
+      } else if (Platform.isWindows) {
+        final windowsInfo = await deviceInfo.windowsInfo;
+        deviceId = windowsInfo.deviceId;
       }
     } catch (e) {
       // Ignore device info errors, login might proceed without binding or backend handles it

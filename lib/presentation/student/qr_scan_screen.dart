@@ -43,15 +43,37 @@ class _QRScanScreenState extends State<QRScanScreen>
       CurvedAnimation(parent: _scanLineController, curve: Curves.easeInOut),
     );
 
-    // Simulate location check
-    Future.delayed(const Duration(seconds: 2), () {
+    // Actually verify location permission and GPS
+    _verifyLocationReady();
+  }
+
+  Future<void> _verifyLocationReady() async {
+    try {
+      final hasPermission = await _locationService.checkAndRequestPermission();
+      if (!hasPermission) {
+        if (mounted) {
+          setState(() {
+            _gpsVerified = false;
+            _checkingLocation = false;
+          });
+        }
+        return;
+      }
+      final position = await _locationService.getCurrentLocation();
       if (mounted) {
         setState(() {
-          _gpsVerified = true;
+          _gpsVerified = position != null;
           _checkingLocation = false;
         });
       }
-    });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _gpsVerified = false;
+          _checkingLocation = false;
+        });
+      }
+    }
   }
 
   @override

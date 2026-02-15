@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/constants/api_endpoints.dart';
 import '../../core/constants/app_constants.dart';
+import '../../data/data_sources/location_service.dart';
 
 class StartSessionScreen extends StatefulWidget {
   const StartSessionScreen({super.key});
@@ -18,6 +19,7 @@ class _StartSessionScreenState extends State<StartSessionScreen>
     with SingleTickerProviderStateMixin {
   String? _selectedClassId;
   String? _selectedClassName;
+  String? _selectedTimeSlot;
   bool _sessionStarted = false;
   bool _isLoading = false;
   int _scannedCount = 0;
@@ -94,6 +96,46 @@ class _StartSessionScreenState extends State<StartSessionScreen>
 
     setState(() => _isLoading = true);
 
+    // Step 1: Get faculty's REAL GPS location
+    final locationService = LocationService();
+    final hasPermission = await locationService.checkAndRequestPermission();
+    if (!hasPermission) {
+      setState(() => _isLoading = false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Location permission is required to start attendance session. Please enable location access.',
+          ),
+          backgroundColor: AppTheme.dangerColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+      return;
+    }
+
+    final position = await locationService.getCurrentLocation();
+    if (position == null) {
+      setState(() => _isLoading = false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Unable to get your location. Please ensure GPS is enabled and try again.',
+          ),
+          backgroundColor: AppTheme.dangerColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+      return;
+    }
+
     try {
       final token = await _storage.read(key: AppConstants.keyAuthToken);
 
@@ -101,8 +143,9 @@ class _StartSessionScreenState extends State<StartSessionScreen>
         ApiEndpoints.startSession,
         data: {
           'classId': _selectedClassId,
-          'latitude': 0.0,
-          'longitude': 0.0,
+          'timeSlot': _selectedTimeSlot,
+          'latitude': position.latitude, // Use REAL faculty GPS
+          'longitude': position.longitude, // Use REAL faculty GPS
           'radius': 30,
         },
         options: token != null
@@ -368,6 +411,31 @@ class _StartSessionScreenState extends State<StartSessionScreen>
                           )['name'];
                         }),
                       ),
+                const SizedBox(height: 20),
+                DropdownButtonFormField<String>(
+                  decoration: InputDecoration(
+                    labelText: 'Select Time Slot',
+                    prefixIcon: const Icon(Icons.access_time),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  value: _selectedTimeSlot,
+                  items:
+                      [
+                        '09:00 AM - 10:00 AM',
+                        '10:00 AM - 11:00 AM',
+                        '11:00 AM - 12:00 PM',
+                        '12:00 PM - 01:00 PM',
+                        '01:00 PM - 02:00 PM',
+                        '02:00 PM - 03:00 PM',
+                        '03:00 PM - 04:00 PM',
+                        '04:00 PM - 05:00 PM',
+                      ].map((slot) {
+                        return DropdownMenuItem(value: slot, child: Text(slot));
+                      }).toList(),
+                  onChanged: (v) => setState(() => _selectedTimeSlot = v),
+                ),
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,

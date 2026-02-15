@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/user_model.dart';
+import '../../data/data_sources/permission_service.dart';
 import '../faculty/faculty_dashboard.dart';
 import '../student/student_dashboard.dart';
 import '../admin/admin_dashboard_screen.dart';
@@ -20,7 +22,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _rememberMe = false;
   int _selectedRole = 0; // 0 = Student, 1 = Faculty
+
+  static const _rememberMeKey = 'remember_me_enabled';
+  static const _rememberedUsernameKey = 'remembered_username';
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   late AnimationController _toggleController;
   late Animation<double> _toggleAnimation;
@@ -36,6 +43,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       parent: _toggleController,
       curve: Curves.easeInOut,
     );
+    _loadRememberedUser();
+  }
+
+  Future<void> _loadRememberedUser() async {
+    final remembered = await _storage.read(key: _rememberMeKey);
+    if (remembered == 'true') {
+      final username = await _storage.read(key: _rememberedUsernameKey);
+      if (username != null && username.isNotEmpty) {
+        setState(() {
+          _rememberMe = true;
+          _usernameController.text = username;
+        });
+      }
+    }
   }
 
   @override
@@ -61,6 +82,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final username = _usernameController.text.trim();
     final password = _passwordController.text;
 
+    // Save or clear remembered username
+    if (_rememberMe) {
+      await _storage.write(key: _rememberMeKey, value: 'true');
+      await _storage.write(key: _rememberedUsernameKey, value: username);
+    } else {
+      await _storage.delete(key: _rememberMeKey);
+      await _storage.delete(key: _rememberedUsernameKey);
+    }
+
     final success = await ref
         .read(authProvider.notifier)
         .login(username, password);
@@ -68,6 +98,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     if (success && mounted) {
       final user = ref.read(authProvider).user;
       if (user != null) {
+        // Request REAL OS permissions right after login (skip for admin)
+        if (user.role != UserRole.admin) {
+          await PermissionService.requestPermissionsForRole(
+            user.role == UserRole.faculty ? 'FACULTY' : 'STUDENT',
+          );
+        }
+
+        if (!mounted) return;
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (context) {
@@ -447,25 +485,69 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           ),
                           const SizedBox(height: 8),
 
-                          // ── Forgot Password ──
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () {},
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(0, 32),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                'Forgot Password?',
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: AppTheme.primaryColor,
-                                      fontWeight: FontWeight.w600,
+                          // ── Remember Me ──
+                          Row(
+                            children: [
+                              SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: Checkbox(
+                                  value: _rememberMe,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _rememberMe = value ?? false;
+                                    });
+                                  },
+                                  activeColor: AppTheme.primaryColor,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  side: BorderSide(
+                                    color: AppTheme.textTertiary.withOpacity(
+                                      0.5,
                                     ),
+                                    width: 1.5,
+                                  ),
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
                               ),
-                            ),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _rememberMe = !_rememberMe;
+                                  });
+                                },
+                                child: Text(
+                                  'Remember Me',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: AppTheme.textSecondary,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                ),
+                              ),
+                              const Spacer(),
+                              // ── Forgot Password ──
+                              TextButton(
+                                onPressed: () {},
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  minimumSize: const Size(0, 32),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: Text(
+                                  'Forgot Password?',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: AppTheme.primaryColor,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 8),
 

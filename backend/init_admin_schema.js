@@ -49,6 +49,39 @@ async function migrate() {
             console.log('⚠️ Failed to create admin user:', e.message);
         }
 
+        // 5. Create Scheduled Lectures Table
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS scheduled_lectures (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                class_id UUID REFERENCES classes(id) ON DELETE CASCADE,
+                faculty_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                title VARCHAR(200) NOT NULL,
+                lecture_date DATE NOT NULL,
+                start_time TIME NOT NULL,
+                end_time TIME NOT NULL,
+                room VARCHAR(100),
+                notes TEXT,
+                status VARCHAR(20) DEFAULT 'SCHEDULED' CHECK (status IN ('SCHEDULED', 'COMPLETED', 'CANCELLED')),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+        try {
+            await db.query('CREATE INDEX IF NOT EXISTS idx_scheduled_lectures_class ON scheduled_lectures(class_id)');
+            await db.query('CREATE INDEX IF NOT EXISTS idx_scheduled_lectures_faculty ON scheduled_lectures(faculty_id)');
+            await db.query('CREATE INDEX IF NOT EXISTS idx_scheduled_lectures_date ON scheduled_lectures(lecture_date)');
+        } catch (e) {
+            console.log('⚠️ Indexes might already exist');
+        }
+        console.log('✅ Created scheduled_lectures table');
+
+        // 6. Add session_code to attendance_sessions if missing
+        try {
+            await db.query(`ALTER TABLE attendance_sessions ADD COLUMN session_code VARCHAR(20)`);
+            console.log('✅ Added session_code to attendance_sessions');
+        } catch (e) {
+            console.log('⚠️ session_code column might already exist');
+        }
+
         console.log('🎉 Migration Complete!');
         process.exit(0);
     } catch (error) {
