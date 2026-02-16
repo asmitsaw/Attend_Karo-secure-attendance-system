@@ -25,13 +25,17 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
   }
 
   Future<void> _loadSchedule() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     final service = ref.read(_studentServiceProvider);
     final data = await service.getSchedule();
-    setState(() {
-      _lectures = data;
-      _isLoading = false;
-    });
+    debugPrint('Student schedule loaded: ${data.length} lectures');
+    if (mounted) {
+      setState(() {
+        _lectures = data;
+        _isLoading = false;
+      });
+    }
   }
 
   @override

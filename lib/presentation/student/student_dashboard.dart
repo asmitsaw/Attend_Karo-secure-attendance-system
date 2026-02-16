@@ -18,6 +18,8 @@ class StudentDashboard extends ConsumerStatefulWidget {
 
 class _StudentDashboardState extends ConsumerState<StudentDashboard> {
   int _currentNavIndex = 0;
+  Timer? _deviceCheckTimer;
+  final StudentService _studentService = StudentService();
 
   final List<Widget> _pages = const [
     _StudentHomePage(),
@@ -26,6 +28,46 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
     StudentReportScreen(),
     StudentProfileScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Check device binding immediately, then every 5 seconds
+    _checkDeviceBinding();
+    _deviceCheckTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _checkDeviceBinding();
+    });
+  }
+
+  @override
+  void dispose() {
+    _deviceCheckTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _checkDeviceBinding() async {
+    if (!mounted) return;
+    try {
+      final profile = await _studentService.getProfile();
+      if (profile == null) return;
+      if (profile['device_id'] == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Device binding has been reset by admin. Please login again.',
+              ),
+              backgroundColor: AppTheme.warningColor,
+              duration: Duration(seconds: 3),
+            ),
+          );
+          ref.read(authProvider.notifier).logout();
+        }
+      }
+    } catch (e) {
+      // Ignore errors during background check
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -142,7 +184,7 @@ class _StudentHomePageState extends ConsumerState<_StudentHomePage> {
     super.initState();
     _loadData();
     // Auto-refresh every 5 seconds for real-time updates
-    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       _refreshSilently();
     });
   }
@@ -159,33 +201,8 @@ class _StudentHomePageState extends ConsumerState<_StudentHomePage> {
       _loadLiveSessions();
       _loadClasses();
       _loadReport();
-      _checkDeviceBinding();
     } catch (e) {
       debugPrint('Refresh error: $e');
-    }
-  }
-
-  Future<void> _checkDeviceBinding() async {
-    if (!mounted) return;
-    try {
-      final profile = await _studentService.getProfile();
-      // If device_id is null, it means it was reset by admin.
-      // Force logout so student can re-login and bind new device.
-      if (profile['device_id'] == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Device binding has been reset. Please login again.',
-              ),
-              backgroundColor: AppTheme.warningColor,
-            ),
-          );
-          ref.read(authProvider.notifier).logout();
-        }
-      }
-    } catch (e) {
-      // Ignore errors during background check
     }
   }
 
@@ -242,25 +259,31 @@ class _StudentHomePageState extends ConsumerState<_StudentHomePage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Good ${_timeOfDayGreeting()},',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: AppTheme.textTertiary,
-                              fontWeight: FontWeight.w400,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Good ${_timeOfDayGreeting()},',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: AppTheme.textTertiary,
+                                fontWeight: FontWeight.w400,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            user?.name ?? 'Student',
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
+                            const SizedBox(height: 2),
+                            SizedBox(
+                              height: 28,
+                              child: _MarqueeText(
+                                text: user?.name ?? 'Student',
+                                style: theme.textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 12),
                       Container(
                         width: 42,
                         height: 42,
@@ -502,7 +525,6 @@ class _StudentHomePageState extends ConsumerState<_StudentHomePage> {
     final subject = session['subject'] ?? 'Unknown';
     final section = session['section'] ?? '';
     final facultyName = session['faculty_name'] ?? '';
-    final code = session['session_code'] ?? '';
     final alreadyMarked = session['already_marked'] == true;
 
     return Container(
@@ -551,10 +573,13 @@ class _StudentHomePageState extends ConsumerState<_StudentHomePage> {
                           color: Colors.white.withOpacity(0.7),
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          '$section • $facultyName',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.white.withOpacity(0.7),
+                        Expanded(
+                          child: Text(
+                            '$section • $facultyName',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.white.withOpacity(0.7),
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -568,16 +593,30 @@ class _StudentHomePageState extends ConsumerState<_StudentHomePage> {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
+                  color: AppTheme.successColor.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: Text(
-                  code,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.5,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: AppTheme.successColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'LIVE',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: AppTheme.successColor,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -899,6 +938,89 @@ class _BottomNavItem extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// A text widget that slowly scrolls horizontally if the text overflows.
+class _MarqueeText extends StatefulWidget {
+  final String text;
+  final TextStyle? style;
+
+  const _MarqueeText({required this.text, this.style});
+
+  @override
+  State<_MarqueeText> createState() => _MarqueeTextState();
+}
+
+class _MarqueeTextState extends State<_MarqueeText> {
+  late final ScrollController _scrollController;
+  bool _needsScroll = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkAndScroll());
+  }
+
+  @override
+  void didUpdateWidget(covariant _MarqueeText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.text != widget.text) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _checkAndScroll());
+    }
+  }
+
+  void _checkAndScroll() {
+    if (!_scrollController.hasClients) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    if (maxScroll > 0) {
+      _needsScroll = true;
+      _startScrolling();
+    }
+  }
+
+  Future<void> _startScrolling() async {
+    if (!mounted || !_needsScroll) return;
+    while (mounted && _needsScroll) {
+      await Future.delayed(const Duration(seconds: 2));
+      if (!mounted || !_scrollController.hasClients) return;
+      final max = _scrollController.position.maxScrollExtent;
+      await _scrollController.animateTo(
+        max,
+        duration: Duration(milliseconds: (max * 30).toInt().clamp(1500, 6000)),
+        curve: Curves.linear,
+      );
+      await Future.delayed(const Duration(seconds: 2));
+      if (!mounted || !_scrollController.hasClients) return;
+      await _scrollController.animateTo(
+        0,
+        duration: Duration(milliseconds: (max * 30).toInt().clamp(1500, 6000)),
+        curve: Curves.linear,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _needsScroll = false;
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      controller: _scrollController,
+      scrollDirection: Axis.horizontal,
+      physics: const NeverScrollableScrollPhysics(),
+      child: Text(
+        widget.text,
+        style: widget.style,
+        maxLines: 1,
+        softWrap: false,
       ),
     );
   }

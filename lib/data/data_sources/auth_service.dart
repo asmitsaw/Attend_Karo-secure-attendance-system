@@ -46,6 +46,10 @@ class AuthService {
           key: AppConstants.keyUserRole,
           value: data['user']['role'] as String,
         );
+        await _storage.write(
+          key: 'user_name',
+          value: data['user']['name'] as String? ?? '',
+        );
 
         return {
           'success': true,
@@ -70,6 +74,7 @@ class AuthService {
     await _storage.delete(key: AppConstants.keyAuthToken);
     await _storage.delete(key: AppConstants.keyUserId);
     await _storage.delete(key: AppConstants.keyUserRole);
+    await _storage.delete(key: 'user_name');
   }
 
   /// Get stored auth token
@@ -80,6 +85,11 @@ class AuthService {
   /// Get stored user ID
   Future<String?> getUserId() async {
     return await _storage.read(key: AppConstants.keyUserId);
+  }
+
+  /// Get stored user name
+  Future<String?> getUserName() async {
+    return await _storage.read(key: 'user_name');
   }
 
   /// Get stored user role

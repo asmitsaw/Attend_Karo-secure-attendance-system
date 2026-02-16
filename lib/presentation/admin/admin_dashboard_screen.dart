@@ -359,7 +359,10 @@ class _DeviceRequestsPageState extends ConsumerState<_DeviceRequestsPage> {
     setState(() => _isLoading = true);
     try {
       final token = await _storage.read(key: AppConstants.keyAuthToken);
-      if (token == null) return;
+      if (token == null) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
 
       final response = await _dio.get(
         ApiEndpoints.getDeviceRequests,
@@ -373,6 +376,7 @@ class _DeviceRequestsPageState extends ConsumerState<_DeviceRequestsPage> {
         });
       }
     } catch (e) {
+      debugPrint('Load device requests error: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -382,7 +386,7 @@ class _DeviceRequestsPageState extends ConsumerState<_DeviceRequestsPage> {
       final token = await _storage.read(key: AppConstants.keyAuthToken);
       if (token == null) return;
 
-      await _dio.patch(
+      await _dio.put(
         ApiEndpoints.approveDeviceRequest(requestId),
         data: {'action': action},
         options: Options(headers: {'Authorization': 'Bearer $token'}),

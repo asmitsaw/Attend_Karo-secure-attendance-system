@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/auth/login_screen.dart';
 import 'presentation/auth/auth_provider.dart';
+import 'presentation/admin/admin_dashboard_screen.dart';
 import 'presentation/faculty/faculty_dashboard.dart';
 import 'presentation/student/student_dashboard.dart';
 import 'data/models/user_model.dart';
@@ -38,7 +39,9 @@ class AuthWrapper extends ConsumerWidget {
     }
 
     // Show appropriate dashboard based on role
-    if (authState.user?.role == UserRole.faculty) {
+    if (authState.user?.role == UserRole.admin) {
+      return const AdminDashboardScreen();
+    } else if (authState.user?.role == UserRole.faculty) {
       return const FacultyDashboard();
     } else {
       return const StudentDashboard();

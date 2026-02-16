@@ -247,6 +247,34 @@ class _StartSessionScreenState extends State<StartSessionScreen>
     return '$m:$s';
   }
 
+  /// Generate dynamic time slots based on current time
+  List<String> _generateTimeSlots() {
+    final now = TimeOfDay.now();
+    final slots = <String>[];
+
+    // Start from 2 hours before current hour (min 7 AM), go until 7 PM
+    final startHour = (now.hour - 2).clamp(7, 19);
+    const endHour = 19; // 7 PM
+
+    for (int h = startHour; h < endHour; h++) {
+      final fromHour = h;
+      final toHour = h + 1;
+      slots.add('${_formatHour(fromHour)} - ${_formatHour(toHour)}');
+    }
+
+    return slots;
+  }
+
+  String _formatHour(int hour24) {
+    final period = hour24 >= 12 ? 'PM' : 'AM';
+    final hour12 = hour24 == 0
+        ? 12
+        : hour24 > 12
+        ? hour24 - 12
+        : hour24;
+    return '${hour12.toString().padLeft(2, '0')}:00 $period';
+  }
+
   Future<void> _endSession() async {
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
@@ -421,19 +449,9 @@ class _StartSessionScreenState extends State<StartSessionScreen>
                     ),
                   ),
                   value: _selectedTimeSlot,
-                  items:
-                      [
-                        '09:00 AM - 10:00 AM',
-                        '10:00 AM - 11:00 AM',
-                        '11:00 AM - 12:00 PM',
-                        '12:00 PM - 01:00 PM',
-                        '01:00 PM - 02:00 PM',
-                        '02:00 PM - 03:00 PM',
-                        '03:00 PM - 04:00 PM',
-                        '04:00 PM - 05:00 PM',
-                      ].map((slot) {
-                        return DropdownMenuItem(value: slot, child: Text(slot));
-                      }).toList(),
+                  items: _generateTimeSlots().map((slot) {
+                    return DropdownMenuItem(value: slot, child: Text(slot));
+                  }).toList(),
                   onChanged: (v) => setState(() => _selectedTimeSlot = v),
                 ),
                 const SizedBox(height: 20),

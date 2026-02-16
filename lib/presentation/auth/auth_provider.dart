@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/constants/api_endpoints.dart';
 import '../../data/data_sources/auth_service.dart';
 import '../../data/models/user_model.dart';
 
@@ -49,9 +51,65 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> _checkAuthStatus() async {
     final isAuth = await _authService.isAuthenticated();
     if (isAuth) {
-      // TODO: Fetch user profile from backend if needed
-      // Actually we should verify token validity
-      state = state.copyWith(isAuthenticated: true);
+      // Restore user data from secure storage
+      final userId = await _authService.getUserId();
+      final role = await _authService.getUserRoleEnum();
+
+      if (userId != null && role != null) {
+        state = state.copyWith(
+          isAuthenticated: true,
+          user: UserModel(id: userId, username: '', name: '', role: role),
+        );
+
+        // Fetch full profile from backend to get the actual name
+        try {
+          final dio = Dio();
+          final token = await _authService.getToken();
+          String? profileEndpoint;
+          if (role == UserRole.student) {
+            profileEndpoint = '${ApiEndpoints.baseUrl}/student/profile';
+          } else if (role == UserRole.faculty) {
+            profileEndpoint = '${ApiEndpoints.baseUrl}/faculty/profile';
+          }
+          // Admin has no profile endpoint — skip fetch
+
+          if (profileEndpoint != null) {
+            final response = await dio.get(
+              profileEndpoint,
+              options: Options(headers: {'Authorization': 'Bearer $token'}),
+            );
+            final profile = response.data['profile'] ?? response.data['user'];
+            if (profile != null) {
+              state = state.copyWith(
+                user: UserModel(
+                  id: userId,
+                  username: profile['username'] ?? '',
+                  name: profile['name'] ?? '',
+                  role: role,
+                  department: profile['department'],
+                ),
+              );
+            }
+          } else {
+            // For admin, restore name from storage
+            final storedName = await _authService.getUserName();
+            state = state.copyWith(
+              user: UserModel(
+                id: userId,
+                username: '',
+                name: storedName ?? 'Admin',
+                role: role,
+              ),
+            );
+          }
+        } catch (e) {
+          // Profile fetch failed — keep the basic user info, they're still authenticated
+        }
+      } else {
+        // Invalid stored data — force logout
+        await _authService.logout();
+        state = AuthState();
+      }
     }
   }
 

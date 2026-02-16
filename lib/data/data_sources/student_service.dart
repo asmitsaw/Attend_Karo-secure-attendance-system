@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../core/constants/api_endpoints.dart';
 import '../../core/constants/app_constants.dart';
@@ -56,8 +57,10 @@ class StudentService {
         ApiEndpoints.getStudentSchedule,
         options: await _authOptions(),
       );
+      debugPrint('Schedule response: ${response.data}');
       return List<Map<String, dynamic>>.from(response.data['lectures'] ?? []);
     } catch (e) {
+      debugPrint('getSchedule error: $e');
       return [];
     }
   }
