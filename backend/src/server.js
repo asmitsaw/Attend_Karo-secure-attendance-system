@@ -46,16 +46,15 @@ app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 // Enable trust proxy for correct IP detection behind load balancers/proxies
 app.set('trust proxy', 1);
 
-// Global rate limiter — relax to handle classroom usage (shared IPs)
-const globalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 3000, // Increased from 100/min to 3000/15min to accomodate classroom surges
-    message: { message: 'Too many requests. Please try again later.' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    // keyGenerator: (req) => req.headers['x-forwarded-for'] || req.ip, // Optional custom key
-});
-app.use('/api/', globalLimiter);
+// Global rate limiter REMOVED for testing
+// const globalLimiter = rateLimit({
+//     windowMs: 15 * 60 * 1000, // 15 minutes
+//     max: 3000,
+//     message: { message: 'Too many requests. Please try again later.' },
+//     standardHeaders: true,
+//     legacyHeaders: false,
+// });
+// app.use('/api/', globalLimiter);
 
 // ─── Request Logging ──────────────────────────────────────
 app.use((req, res, next) => {
