@@ -15,38 +15,27 @@ async function login(req, res) {
         }
 
         // Get user from database
-        console.log('🔍 Looking for user:', username);
         const result = await db.query(
             'SELECT id, username, password_hash, name, role, department, email FROM users WHERE username = $1',
             [username]
         );
 
-        console.log('📊 Query result:', result.rows.length, 'rows found');
         if (result.rows.length === 0) {
-            console.log('❌ User not found:', username);
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
         const user = result.rows[0];
-        console.log('👤 Found user:', user.username, 'Role:', user.role);
-        console.log('🔑 Stored hash:', user.password_hash);
-        console.log('🔑 Hash length:', user.password_hash.length);
 
         // Verify password
-        console.log('🔐 Verifying password...');
         const isMatch = await comparePassword(password, user.password_hash);
-        console.log('🔐 Password match:', isMatch);
         if (!isMatch) {
-            console.log('❌ Password mismatch for user:', username);
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
-        // [New] Device Binding Logic for Students
+        // Device Binding Logic for Students
         if (user.role === 'STUDENT') {
             const { deviceId } = req.body;
             if (deviceId) {
-                // Check stored device_id in students table
-                // Note: user.id is the student.id (1:1 relation)
                 const studentRes = await db.query('SELECT device_id FROM students WHERE id = $1', [user.id]);
 
                 if (studentRes.rows.length > 0) {
@@ -55,17 +44,15 @@ async function login(req, res) {
                     if (!storedDeviceId) {
                         // First time login: Bind Device
                         await db.query('UPDATE students SET device_id = $1, device_bound_at = NOW() WHERE id = $2', [deviceId, user.id]);
-                        console.log(`📱 Device bound for ${username}: ${deviceId}`);
+                        console.log(`[AUTH] Device bound for user ${username}`);
                     } else if (storedDeviceId !== deviceId) {
-                        // Mismatch
-                        console.log(`❌ Device mismatch for ${username}. Stored: ${storedDeviceId}, Provided: ${deviceId}`);
+                        // Device mismatch — do NOT log device IDs
+                        console.log(`[AUTH] Device mismatch for user ${username}`);
                         return res.status(403).json({ message: 'Login restricted to registered device only. Contact Admin to reset.' });
-                    } else {
-                        console.log(`✅ Device verified for ${username}`);
                     }
                 }
             } else {
-                console.warn(`⚠️ Student ${username} logged in without deviceId`);
+                console.warn(`[AUTH] Student ${username} logged in without deviceId`);
             }
         }
 
@@ -75,6 +62,8 @@ async function login(req, res) {
             JWT_SECRET,
             { expiresIn: '24h' }
         );
+
+        console.log(`[AUTH] Login success: ${username} (${user.role})`);
 
         res.json({
             token,
@@ -88,7 +77,7 @@ async function login(req, res) {
             },
         });
     } catch (error) {
-        console.error('Login error:', error);
+        console.error('[AUTH] Login error:', error.message);
         res.status(500).json({ message: 'Server error' });
     }
 }

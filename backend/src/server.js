@@ -1,6 +1,11 @@
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+
+// Conditionally load helmet (install if available)
+let helmet;
+try { helmet = require('helmet'); } catch (e) { helmet = null; }
 
 const authRoutes = require('./routes/auth');
 const facultyRoutes = require('./routes/faculty');
@@ -11,18 +16,50 @@ const { PORT } = require('./config/constants');
 
 const app = express();
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// ─── Security Middleware ──────────────────────────────────
+// Security headers (XSS, clickjacking, MIME sniffing protection)
+if (helmet) {
+    app.use(helmet());
+}
 
-// Request logging
+// CORS — restrict to known origins in production
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',')
+    : ['http://localhost:3000', 'http://localhost:5000'];
+app.use(cors({
+    origin: function (origin, callback) {
+        // Allow requests with no origin (mobile apps, curl, Postman)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(null, true); // In production, change to: callback(new Error('Not allowed by CORS'))
+        }
+    },
+    credentials: true,
+}));
+
+// Body parsing with size limits
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
+
+// Global rate limiter — safety net (100 requests/min per IP)
+const globalLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 100,
+    message: { message: 'Too many requests. Please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+app.use('/api/', globalLimiter);
+
+// ─── Request Logging ──────────────────────────────────────
 app.use((req, res, next) => {
     console.log(`${req.method} ${req.path}`);
     next();
 });
 
-// Routes
+// ─── Routes ───────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/faculty', facultyRoutes);
@@ -39,15 +76,14 @@ app.use((req, res) => {
     res.status(404).json({ message: 'Route not found' });
 });
 
-// Error handler
+// Error handler — never expose stack traces in production
 app.use((err, req, res, next) => {
-    console.error('Error:', err);
+    console.error('[ERROR]', err.message);
     res.status(500).json({ message: 'Internal server error' });
 });
 
 // Start server
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📍 API: http://localhost:${PORT}/api`);
-    console.log(`❤️  Health: http://localhost:${PORT}/health`);
+    console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
 });

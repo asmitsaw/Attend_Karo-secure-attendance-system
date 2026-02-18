@@ -1,5 +1,8 @@
 node_modules/
 .env
 
+# Sensitive credential files
+generated_credentials/
+uploads/
 
 *.log

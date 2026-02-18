@@ -361,7 +361,7 @@ async function getAnalytics(req, res) {
 async function getClasses(req, res) {
     try {
         const facultyId = req.user.userId;
-        console.log('📚 getClasses called for facultyId:', facultyId);
+        console.log('[FACULTY] getClasses called');
 
         const result = await db.query(
             `SELECT id, subject, department, semester, section, created_at
@@ -369,7 +369,6 @@ async function getClasses(req, res) {
             [facultyId]
         );
 
-        console.log('📚 Found', result.rows.length, 'classes:', JSON.stringify(result.rows));
         res.json({ classes: result.rows });
     } catch (error) {
         console.error('Get classes error:', error);

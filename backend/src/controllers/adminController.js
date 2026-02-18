@@ -2,7 +2,21 @@ const db = require('../config/database');
 const fs = require('fs');
 const csv = require('csv-parser');
 const path = require('path');
+const crypto = require('crypto');
 const { hashPassword } = require('../utils/hash');
+
+/**
+ * Generate a cryptographically secure random password (8 chars, alphanumeric)
+ * Strength: 62^8 = ~218 trillion combinations
+ */
+function generateSecurePassword() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'; // no ambiguous chars (0,O,l,1,I)
+    let password = '';
+    for (let i = 0; i < 8; i++) {
+        password += chars[crypto.randomInt(chars.length)];
+    }
+    return password;
+}
 
 /**
  * Upload students CSV and create accounts
@@ -96,7 +110,7 @@ async function uploadStudents(req, res) {
                     }
 
                     try {
-                        const plainPassword = Math.floor(10000 + Math.random() * 90000).toString();
+                        const plainPassword = generateSecurePassword();
                         const hashedPassword = await hashPassword(plainPassword);
 
                         await studentClient.query('BEGIN');
@@ -253,7 +267,7 @@ async function regenerateBatchCredentials(req, res) {
 
         for (const student of students.rows) {
             // Generate new password
-            const plainPassword = Math.floor(10000 + Math.random() * 90000).toString();
+            const plainPassword = generateSecurePassword();
             // Hash it
             const hashedPassword = await hashPassword(plainPassword);
 

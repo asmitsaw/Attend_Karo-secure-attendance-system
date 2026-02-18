@@ -21,8 +21,18 @@ const {
     getStudentAttendanceDetail,
 } = require('../controllers/facultyController');
 
-// Multer setup for CSV upload
-const upload = multer({ dest: 'uploads/' });
+// Multer setup for CSV upload — limit file size and type
+const upload = multer({
+    dest: 'uploads/',
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only CSV files are allowed'), false);
+        }
+    },
+});
 
 // All routes require faculty authentication
 router.use(authMiddleware, requireFaculty);
