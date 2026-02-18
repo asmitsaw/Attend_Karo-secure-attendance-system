@@ -8,8 +8,10 @@ class AppConstants {
   static const double locationAccuracyThreshold = 30.0; // meters
 
   // QR Code
-  static const int qrValidityDuration = 30; // seconds
-  static const int qrRefreshInterval = 10; // seconds
+  static const int qrValidityDuration =
+      15; // seconds — must match backend QR_VALIDITY_SECONDS
+  static const int qrRefreshInterval =
+      5; // seconds — must match backend QR_REFRESH_INTERVAL
 
   // Session
   static const int minSessionDuration = 5; // minutes

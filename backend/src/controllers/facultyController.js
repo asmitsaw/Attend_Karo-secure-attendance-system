@@ -378,14 +378,20 @@ async function getClasses(req, res) {
 
 /**
  * Get live session count and student list
+ * Also returns session isActive status so the app detects web-ended sessions
  */
 async function getLiveCount(req, res) {
     try {
         const { sessionId } = req.params;
         const facultyId = req.user.userId;
 
-        // Verify session belongs to faculty
-        // (Optional: strict check if session belongs to faculty's class)
+        // Get session active status
+        const sessionCheck = await db.query(
+            'SELECT is_active FROM attendance_sessions WHERE id = $1',
+            [sessionId]
+        );
+
+        const isActive = sessionCheck.rows.length > 0 ? sessionCheck.rows[0].is_active : false;
 
         const students = await db.query(
             `SELECT u.name, s.roll_number, r.marked_at as timestamp
@@ -400,6 +406,7 @@ async function getLiveCount(req, res) {
         res.json({
             count: students.rows.length,
             students: students.rows,
+            isActive,
         });
     } catch (error) {
         console.error('Get live count error:', error);

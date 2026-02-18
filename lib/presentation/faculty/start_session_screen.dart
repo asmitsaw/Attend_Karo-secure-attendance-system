@@ -213,6 +213,29 @@ class _StartSessionScreenState extends State<StartSessionScreen>
         );
 
         if (mounted) {
+          // ── Check if session was ended from the web display ──
+          final bool isActive = res.data['isActive'] ?? true;
+          if (!isActive) {
+            // Session was ended externally (from web display)
+            _liveStatsTimer?.cancel();
+            _sessionTimer?.cancel();
+            setState(() {
+              _sessionStarted = false;
+              _sessionId = null;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Session was ended from the web display'),
+                backgroundColor: AppTheme.warningColor,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            );
+            return;
+          }
+
           final students = res.data['students'] as List;
           setState(() {
             _scannedCount = res.data['count'] ?? 0;
