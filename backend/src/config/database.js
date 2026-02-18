@@ -3,9 +3,9 @@ require('dotenv').config();
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  max: 5,
+  max: 20, // Increased from 5 to 20 for concurrency
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
+  connectionTimeoutMillis: 20000, // Increased from 10s to 20s
   ssl: { rejectUnauthorized: false },
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000,

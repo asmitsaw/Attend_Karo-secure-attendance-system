@@ -43,13 +43,17 @@ app.use(cors({
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
-// Global rate limiter — safety net (100 requests/min per IP)
+// Enable trust proxy for correct IP detection behind load balancers/proxies
+app.set('trust proxy', 1);
+
+// Global rate limiter — relax to handle classroom usage (shared IPs)
 const globalLimiter = rateLimit({
-    windowMs: 60 * 1000,
-    max: 100,
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 3000, // Increased from 100/min to 3000/15min to accomodate classroom surges
     message: { message: 'Too many requests. Please try again later.' },
     standardHeaders: true,
     legacyHeaders: false,
+    // keyGenerator: (req) => req.headers['x-forwarded-for'] || req.ip, // Optional custom key
 });
 app.use('/api/', globalLimiter);
 
