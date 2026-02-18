@@ -457,6 +457,49 @@ async function approveDeviceChange(req, res) {
     }
 }
 
+/**
+ * Get system-wide stats for admin dashboard
+ */
+async function getSystemStats(req, res) {
+    try {
+        // Run all queries in parallel for speed
+        const [studentsRes, facultyRes, activeSessionsRes, todayAttendance, pendingDeviceReqs] = await Promise.all([
+            db.query(`SELECT COUNT(*) as count FROM students`),
+            db.query(`SELECT COUNT(*) as count FROM users WHERE role = 'FACULTY'`),
+            db.query(`SELECT COUNT(*) as count FROM attendance_sessions WHERE is_active = true`),
+            db.query(
+                `SELECT 
+                    COUNT(DISTINCT ar.student_id) as present_today,
+                    (SELECT COUNT(*) FROM students) as total_students
+                 FROM attendance_records ar
+                 JOIN attendance_sessions s ON ar.session_id = s.id
+                 WHERE ar.status = 'PRESENT' 
+                   AND s.created_at::date = CURRENT_DATE`
+            ),
+            db.query(`SELECT COUNT(*) as count FROM device_change_requests WHERE status = 'PENDING'`),
+        ]);
+
+        const totalStudents = parseInt(studentsRes.rows[0].count);
+        const totalFaculty = parseInt(facultyRes.rows[0].count);
+        const activeSessions = parseInt(activeSessionsRes.rows[0].count);
+        const presentToday = parseInt(todayAttendance.rows[0].present_today || 0);
+        const totalForRate = parseInt(todayAttendance.rows[0].total_students || 1);
+        const pendingRequests = parseInt(pendingDeviceReqs.rows[0].count);
+
+        res.json({
+            totalStudents,
+            totalFaculty,
+            activeSessions,
+            todayAttendanceRate: totalForRate > 0 ? Math.round((presentToday / totalForRate) * 100) : 0,
+            presentToday,
+            pendingDeviceRequests: pendingRequests,
+        });
+    } catch (error) {
+        console.error('Get system stats error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+}
+
 module.exports = {
     uploadStudents,
     updateBatch,
@@ -468,6 +511,7 @@ module.exports = {
     approveDeviceChange,
     getStudentsByBatch,
     resetStudentDevice,
+    getSystemStats,
 };
 
 /**

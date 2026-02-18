@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'start_session_screen.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/data_sources/faculty_service.dart';
 
 final _facultyServiceProvider = Provider((ref) => FacultyService());
 
 class LectureScheduleScreen extends ConsumerStatefulWidget {
-  const LectureScheduleScreen({super.key});
+  final int initialTabIndex;
+
+  const LectureScheduleScreen({super.key, this.initialTabIndex = 0});
 
   @override
   ConsumerState<LectureScheduleScreen> createState() =>
@@ -26,7 +29,11 @@ class _LectureScheduleScreenState extends ConsumerState<LectureScheduleScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: widget.initialTabIndex,
+    );
     _loadAll();
   }
 
@@ -209,7 +216,17 @@ class _LectureScheduleScreenState extends ConsumerState<LectureScheduleScreen>
         itemCount: _liveSessions.length,
         itemBuilder: (context, index) {
           final session = _liveSessions[index];
-          return _LiveSessionCard(session: session);
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => StartSessionScreen(existingSession: session),
+                ),
+              ).then((_) => _loadAll());
+            },
+            child: _LiveSessionCard(session: session),
+          );
         },
       ),
     );

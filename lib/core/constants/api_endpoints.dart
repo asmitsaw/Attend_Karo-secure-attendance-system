@@ -19,6 +19,7 @@ class ApiEndpoints {
   static const String regenerateCredentials =
       '$baseUrl/admin/batch'; // append /:id/regenerate
   static const String getDeviceRequests = '$baseUrl/admin/device-requests';
+  static const String getSystemStats = '$baseUrl/admin/system-stats';
   static String approveDeviceRequest(String requestId) =>
       '$baseUrl/admin/device-requests/$requestId';
 

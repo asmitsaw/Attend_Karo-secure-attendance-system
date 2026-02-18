@@ -13,6 +13,7 @@ const {
     approveDeviceChange,
     getStudentsByBatch,
     resetStudentDevice,
+    getSystemStats,
 } = require('../controllers/adminController');
 
 const upload = multer({
@@ -32,6 +33,7 @@ router.use(authMiddleware, requireAdmin);
 
 router.post('/students/upload', upload.single('file'), uploadStudents);
 router.get('/batches', getBatches);
+router.get('/system-stats', getSystemStats);
 router.put('/batch/:batchId', updateBatch);
 router.get('/batch/:batchId/students', getStudentsByBatch); // Added
 router.get('/batch/:batchId/credentials', downloadCredentials);

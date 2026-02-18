@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/data_sources/faculty_service.dart';
@@ -44,7 +45,7 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 20,
             offset: const Offset(0, -4),
           ),
@@ -60,21 +61,31 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard> {
                 icon: Icons.home_rounded,
                 label: 'Home',
                 isActive: _currentNavIndex == 0,
-                onTap: () => setState(() => _currentNavIndex = 0),
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  setState(() => _currentNavIndex = 0);
+                },
               ),
               _BottomNavItem(
                 icon: Icons.analytics_rounded,
                 label: 'Analytics',
                 isActive: _currentNavIndex == 1,
-                onTap: () => setState(() => _currentNavIndex = 1),
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  setState(() => _currentNavIndex = 1);
+                },
               ),
               // Center Start Session button
               GestureDetector(
                 onTap: () {
+                  HapticFeedback.mediumImpact();
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const StartSessionScreen(),
+                    PageRouteBuilder(
+                      pageBuilder: (_, __, ___) => const StartSessionScreen(),
+                      transitionsBuilder: (_, anim, __, child) =>
+                          FadeTransition(opacity: anim, child: child),
+                      transitionDuration: const Duration(milliseconds: 250),
                     ),
                   );
                 },
@@ -90,7 +101,7 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: AppTheme.primaryColor.withOpacity(0.3),
+                        color: AppTheme.primaryColor.withValues(alpha: 0.3),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),
@@ -107,13 +118,19 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard> {
                 icon: Icons.people_rounded,
                 label: 'Students',
                 isActive: _currentNavIndex == 3,
-                onTap: () => setState(() => _currentNavIndex = 3),
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  setState(() => _currentNavIndex = 3);
+                },
               ),
               _BottomNavItem(
                 icon: Icons.event_note_rounded,
                 label: 'Lectures',
                 isActive: _currentNavIndex == 4,
-                onTap: () => setState(() => _currentNavIndex = 4),
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  setState(() => _currentNavIndex = 4);
+                },
               ),
             ],
           ),
@@ -124,7 +141,7 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard> {
 }
 
 // ═══════════════════════════════════════════════
-//  Faculty Home Page (Tab 0) – Dynamic Data
+//  Faculty Home Page (Tab 0) – Enhanced
 // ═══════════════════════════════════════════════
 class _FacultyHomePage extends ConsumerStatefulWidget {
   const _FacultyHomePage();
@@ -138,6 +155,8 @@ class _FacultyHomePageState extends ConsumerState<_FacultyHomePage> {
   List<Map<String, dynamic>> _classes = [];
   List<Map<String, dynamic>> _liveSessions = [];
   List<Map<String, dynamic>> _todayLectures = [];
+  List<Map<String, dynamic>> _sessionHistory = [];
+  Map<String, dynamic> _analytics = {};
   bool _isLoading = true;
   Timer? _autoRefreshTimer;
 
@@ -145,7 +164,6 @@ class _FacultyHomePageState extends ConsumerState<_FacultyHomePage> {
   void initState() {
     super.initState();
     _loadData();
-    // Auto-refresh every 5 seconds for real-time updates
     _autoRefreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       _refreshSilently();
     });
@@ -157,22 +175,19 @@ class _FacultyHomePageState extends ConsumerState<_FacultyHomePage> {
     super.dispose();
   }
 
-  /// Silent refresh — updates data without showing the loading spinner
   Future<void> _refreshSilently() async {
     await Future.wait([
       _loadClasses(),
       _loadLiveSessions(),
       _loadTodayLectures(),
+      _loadSessionHistory(),
+      _loadAnalytics(),
     ]);
   }
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    await Future.wait([
-      _loadClasses(),
-      _loadLiveSessions(),
-      _loadTodayLectures(),
-    ]);
+    await _refreshSilently();
     if (mounted) setState(() => _isLoading = false);
   }
 
@@ -194,26 +209,74 @@ class _FacultyHomePageState extends ConsumerState<_FacultyHomePage> {
     if (mounted) setState(() => _todayLectures = lectures);
   }
 
+  Future<void> _loadSessionHistory() async {
+    final history = await _service.getSessionHistory();
+    if (mounted) setState(() => _sessionHistory = history);
+  }
+
+  Future<void> _loadAnalytics() async {
+    final data = await _service.getAnalytics();
+    if (mounted) setState(() => _analytics = data);
+  }
+
+  // ── Computed Stats ──
+  int get _totalSessionsThisWeek {
+    final now = DateTime.now();
+    final weekStart = now.subtract(Duration(days: now.weekday - 1));
+    return _sessionHistory.where((s) {
+      try {
+        final d = DateTime.parse(s['created_at'] ?? '');
+        return d.isAfter(weekStart.subtract(const Duration(days: 1)));
+      } catch (_) {
+        return false;
+      }
+    }).length;
+  }
+
+  int get _totalSessionsThisMonth {
+    final now = DateTime.now();
+    return _sessionHistory.where((s) {
+      try {
+        final d = DateTime.parse(s['created_at'] ?? '');
+        return d.month == now.month && d.year == now.year;
+      } catch (_) {
+        return false;
+      }
+    }).length;
+  }
+
+  List<Map<String, dynamic>> get _recentActivity {
+    // Return last 5 sessions with student count
+    return _sessionHistory.take(5).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final user = ref.watch(authProvider).user;
+    final classPerformance = List<Map<String, dynamic>>.from(
+      _analytics['classPerformance'] ?? [],
+    );
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
       body: SafeArea(
         child: Column(
           children: [
-            // ── Header ──
+            // ── Compact Header ──
             Container(
               decoration: const BoxDecoration(
-                color: AppTheme.primaryColor,
+                gradient: LinearGradient(
+                  colors: [AppTheme.primaryColor, Color(0xFF2B3D8F)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(28),
-                  bottomRight: Radius.circular(28),
+                  bottomLeft: Radius.circular(24),
+                  bottomRight: Radius.circular(24),
                 ),
               ),
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -224,16 +287,19 @@ class _FacultyHomePageState extends ConsumerState<_FacultyHomePage> {
                       Text(
                         _formattedDate(),
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.white.withOpacity(0.7),
+                          color: Colors.white.withValues(alpha: 0.7),
                           fontWeight: FontWeight.w400,
                         ),
                       ),
                       IconButton(
-                        onPressed: () => _showLogoutDialog(context, ref),
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          _showLogoutDialog(context, ref);
+                        },
                         icon: Icon(
                           Icons.logout,
-                          color: Colors.white.withOpacity(0.85),
-                          size: 22,
+                          color: Colors.white.withValues(alpha: 0.85),
+                          size: 20,
                         ),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
@@ -241,134 +307,109 @@ class _FacultyHomePageState extends ConsumerState<_FacultyHomePage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
 
-                  // Welcome name
-                  Text(
-                    'Welcome,',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: Colors.white.withOpacity(0.8),
-                      fontWeight: FontWeight.w300,
-                    ),
-                  ),
-                  Text(
-                    user?.name ?? 'Professor',
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Secure Mode + Live sessions badge
+                  // Welcome + Live badge
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.successColor.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: const BoxDecoration(
-                                color: AppTheme.successColor,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
                             Text(
-                              'Secure Mode',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: AppTheme.successColor,
-                                fontWeight: FontWeight.w600,
+                              'Welcome, ${user?.name ?? 'Professor'}',
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
                       if (_liveSessions.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFFF5252),
-                                  shape: BoxShape.circle,
+                        GestureDetector(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            Navigator.push(
+                              context,
+                              PageRouteBuilder(
+                                pageBuilder: (_, __, ___) =>
+                                    const LectureScheduleScreen(
+                                      initialTabIndex: 1,
+                                    ),
+                                transitionsBuilder: (_, anim, __, child) =>
+                                    FadeTransition(opacity: anim, child: child),
+                                transitionDuration: const Duration(
+                                  milliseconds: 250,
                                 ),
                               ),
-                              const SizedBox(width: 6),
-                              Text(
-                                '${_liveSessions.length} Live Now',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
+                            ).then((_) => _refreshSilently());
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xFFFF5252,
+                              ).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFFF5252),
+                                    shape: BoxShape.circle,
+                                  ),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 6),
+                                Text(
+                                  '${_liveSessions.length} Live',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(width: 2),
+                                Icon(
+                                  Icons.arrow_forward_ios,
+                                  size: 9,
+                                  color: Colors.white.withValues(alpha: 0.7),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 14),
 
-                  // ── Quick Action Buttons ──
+                  // ── Stat Summary Row ──
                   Row(
                     children: [
-                      Expanded(
-                        child: _ActionCard(
-                          icon: Icons.add_circle_outline,
-                          label: 'Create Class',
-                          sublabel: '${_classes.length} classes',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const CreateClassScreen(),
-                              ),
-                            );
-                          },
-                        ),
+                      _HeaderStat(
+                        icon: Icons.class_,
+                        value: '${_classes.length}',
+                        label: 'Classes',
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _ActionCard(
-                          icon: Icons.sensors,
-                          label: 'Start Session',
-                          sublabel: _liveSessions.isNotEmpty
-                              ? '${_liveSessions.length} Live'
-                              : 'No active',
-                          sublabelColor: _liveSessions.isNotEmpty
-                              ? AppTheme.successColor
-                              : null,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const StartSessionScreen(),
-                              ),
-                            );
-                          },
-                        ),
+                      const SizedBox(width: 8),
+                      _HeaderStat(
+                        icon: Icons.today,
+                        value: '$_totalSessionsThisWeek',
+                        label: 'This Week',
+                      ),
+                      const SizedBox(width: 8),
+                      _HeaderStat(
+                        icon: Icons.calendar_month,
+                        value: '$_totalSessionsThisMonth',
+                        label: 'This Month',
                       ),
                     ],
                   ),
@@ -382,17 +423,87 @@ class _FacultyHomePageState extends ConsumerState<_FacultyHomePage> {
                 onRefresh: _loadData,
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // ── Quick Actions ──
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _QuickActionCard(
+                              icon: Icons.add_circle_outline,
+                              label: 'Create Class',
+                              color: AppTheme.primaryColor,
+                              onTap: () {
+                                HapticFeedback.lightImpact();
+                                Navigator.push(
+                                  context,
+                                  PageRouteBuilder(
+                                    pageBuilder: (_, __, ___) =>
+                                        const CreateClassScreen(),
+                                    transitionsBuilder: (_, anim, __, child) =>
+                                        SlideTransition(
+                                          position:
+                                              Tween<Offset>(
+                                                begin: const Offset(0, 0.1),
+                                                end: Offset.zero,
+                                              ).animate(
+                                                CurvedAnimation(
+                                                  parent: anim,
+                                                  curve: Curves.easeOut,
+                                                ),
+                                              ),
+                                          child: FadeTransition(
+                                            opacity: anim,
+                                            child: child,
+                                          ),
+                                        ),
+                                    transitionDuration: const Duration(
+                                      milliseconds: 300,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _QuickActionCard(
+                              icon: Icons.sensors,
+                              label: 'Start Session',
+                              color: AppTheme.accentPurple,
+                              onTap: () {
+                                HapticFeedback.lightImpact();
+                                Navigator.push(
+                                  context,
+                                  PageRouteBuilder(
+                                    pageBuilder: (_, __, ___) =>
+                                        const StartSessionScreen(),
+                                    transitionsBuilder: (_, anim, __, child) =>
+                                        FadeTransition(
+                                          opacity: anim,
+                                          child: child,
+                                        ),
+                                    transitionDuration: const Duration(
+                                      milliseconds: 250,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
                       // ── Today's Classes ──
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                             "Today's Classes",
-                            style: theme.textTheme.titleLarge?.copyWith(
+                            style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -404,7 +515,7 @@ class _FacultyHomePageState extends ConsumerState<_FacultyHomePage> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
 
                       if (_isLoading)
                         const Center(
@@ -414,45 +525,15 @@ class _FacultyHomePageState extends ConsumerState<_FacultyHomePage> {
                           ),
                         )
                       else if (_todayLectures.isEmpty)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(
-                              color: Colors.black.withOpacity(0.04),
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.event_busy,
-                                size: 40,
-                                color: AppTheme.textTertiary.withOpacity(0.4),
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'No Classes Scheduled Today',
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  color: AppTheme.textSecondary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Go to Lectures tab to schedule classes',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: AppTheme.textTertiary,
-                                ),
-                              ),
-                            ],
-                          ),
+                        _EmptyCard(
+                          icon: Icons.event_busy,
+                          title: 'No Classes Scheduled Today',
+                          subtitle: 'Go to Lectures tab to schedule classes',
                         )
                       else
                         ..._todayLectures.map(
                           (lec) => Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.only(bottom: 10),
                             child: _TodayClassCard(
                               time: _formatTime(lec['start_time']),
                               title: lec['subject'] ?? lec['title'] ?? '',
@@ -461,10 +542,20 @@ class _FacultyHomePageState extends ConsumerState<_FacultyHomePage> {
                               location: lec['room'] ?? '',
                               isActive: _isLectureActive(lec),
                               onStartAttendance: () {
+                                HapticFeedback.mediumImpact();
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const StartSessionScreen(),
+                                  PageRouteBuilder(
+                                    pageBuilder: (_, __, ___) =>
+                                        const StartSessionScreen(),
+                                    transitionsBuilder: (_, anim, __, child) =>
+                                        FadeTransition(
+                                          opacity: anim,
+                                          child: child,
+                                        ),
+                                    transitionDuration: const Duration(
+                                      milliseconds: 250,
+                                    ),
                                   ),
                                 );
                               },
@@ -472,64 +563,286 @@ class _FacultyHomePageState extends ConsumerState<_FacultyHomePage> {
                           ),
                         ),
 
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 24),
+
+                      // ── Class Performance ──
+                      if (classPerformance.isNotEmpty) ...[
+                        Text(
+                          'Class Attendance',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        ...classPerformance.map((cp) {
+                          final pct = cp['percentage'] ?? 0;
+                          final totalSessions =
+                              int.tryParse('${cp['total_sessions']}') ?? 0;
+                          final badgeColor = pct >= 75
+                              ? AppTheme.successColor
+                              : pct >= 50
+                              ? AppTheme.warningColor
+                              : AppTheme.dangerColor;
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: Colors.black.withValues(alpha: 0.04),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  // Circular % indicator
+                                  SizedBox(
+                                    width: 44,
+                                    height: 44,
+                                    child: Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+                                        CircularProgressIndicator(
+                                          value: pct / 100,
+                                          strokeWidth: 4,
+                                          backgroundColor: badgeColor
+                                              .withValues(alpha: 0.15),
+                                          valueColor: AlwaysStoppedAnimation(
+                                            badgeColor,
+                                          ),
+                                        ),
+                                        Text(
+                                          '$pct%',
+                                          style: theme.textTheme.labelSmall
+                                              ?.copyWith(
+                                                color: badgeColor,
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 11,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          cp['subject'] ?? '',
+                                          style: theme.textTheme.titleSmall
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                        ),
+                                        Text(
+                                          '${cp['section'] ?? ''} • $totalSessions sessions',
+                                          style: theme.textTheme.labelSmall
+                                              ?.copyWith(
+                                                color: AppTheme.textTertiary,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: badgeColor.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: Text(
+                                      pct >= 75
+                                          ? 'Good'
+                                          : pct >= 50
+                                          ? 'Low'
+                                          : 'Critical',
+                                      style: theme.textTheme.labelSmall
+                                          ?.copyWith(
+                                            color: badgeColor,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 10,
+                                          ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }),
+                        const SizedBox(height: 24),
+                      ],
+
+                      // ── Recent Activity ──
+                      if (_recentActivity.isNotEmpty) ...[
+                        Text(
+                          'Recent Activity',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.black.withValues(alpha: 0.04),
+                            ),
+                          ),
+                          child: Column(
+                            children: _recentActivity.asMap().entries.map((
+                              entry,
+                            ) {
+                              final idx = entry.key;
+                              final session = entry.value;
+                              final subject =
+                                  session['subject'] ??
+                                  session['class_subject'] ??
+                                  'Session';
+                              final count =
+                                  session['attendance_count'] ??
+                                  session['present_count'] ??
+                                  '—';
+                              final totalStudents =
+                                  session['total_students'] ?? '';
+                              String timeAgo = '';
+                              try {
+                                final d = DateTime.parse(
+                                  session['created_at'] ?? '',
+                                );
+                                final diff = DateTime.now().difference(d);
+                                if (diff.inMinutes < 60) {
+                                  timeAgo = '${diff.inMinutes}m ago';
+                                } else if (diff.inHours < 24) {
+                                  timeAgo = '${diff.inHours}h ago';
+                                } else {
+                                  timeAgo = '${diff.inDays}d ago';
+                                }
+                              } catch (_) {}
+
+                              return Column(
+                                children: [
+                                  if (idx > 0)
+                                    Divider(
+                                      height: 1,
+                                      color: Colors.black.withValues(
+                                        alpha: 0.05,
+                                      ),
+                                    ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 32,
+                                          height: 32,
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.primaryColor
+                                                .withValues(alpha: 0.08),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            Icons.check_circle_outline,
+                                            size: 16,
+                                            color: AppTheme.primaryColor,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                subject,
+                                                style: theme.textTheme.bodySmall
+                                                    ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color:
+                                                          AppTheme.textPrimary,
+                                                    ),
+                                              ),
+                                              Text(
+                                                totalStudents
+                                                        .toString()
+                                                        .isNotEmpty
+                                                    ? '$count/$totalStudents attended'
+                                                    : '$count attended',
+                                                style: theme
+                                                    .textTheme
+                                                    .labelSmall
+                                                    ?.copyWith(
+                                                      color:
+                                                          AppTheme.textTertiary,
+                                                    ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Text(
+                                          timeAgo,
+                                          style: theme.textTheme.labelSmall
+                                              ?.copyWith(
+                                                color: AppTheme.textTertiary,
+                                                fontSize: 10,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
 
                       // ── My Classes ──
                       Text(
                         'My Classes',
-                        style: theme.textTheme.titleLarge?.copyWith(
+                        style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
 
                       if (_classes.isEmpty && !_isLoading)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(
-                              color: Colors.black.withOpacity(0.04),
+                        _EmptyCard(
+                          icon: Icons.class_,
+                          title: 'No Classes Created',
+                          subtitle: 'Tap Create Class to get started',
+                          action: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const CreateClassScreen(),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.add, size: 18),
+                            label: const Text('Create First Class'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
-                          ),
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.class_,
-                                size: 40,
-                                color: AppTheme.textTertiary.withOpacity(0.4),
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'No Classes Created',
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  color: AppTheme.textSecondary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              ElevatedButton.icon(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => const CreateClassScreen(),
-                                    ),
-                                  );
-                                },
-                                icon: const Icon(Icons.add, size: 18),
-                                label: const Text('Create First Class'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppTheme.primaryColor,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                            ],
                           ),
                         )
                       else
@@ -545,14 +858,24 @@ class _FacultyHomePageState extends ConsumerState<_FacultyHomePage> {
                               cls['student_count'] ??
                               cls['enrolled_count'] ??
                               0;
+
+                          // Find attendance % from analytics
+                          final perf = classPerformance.firstWhere(
+                            (cp) =>
+                                cp['id']?.toString() == cls['id']?.toString(),
+                            orElse: () => {},
+                          );
+                          final pct = perf['percentage'] ?? 0;
+
                           return Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.only(bottom: 8),
                             child: _SubjectTile(
                               code: code,
                               title: cls['subject'] ?? '',
                               subtitle:
                                   '${cls['section'] ?? ''} • $studentCount Students',
                               studentCount: '$studentCount',
+                              attendancePct: pct is int ? pct : 0,
                             ),
                           );
                         }),
@@ -629,7 +952,7 @@ class _FacultyHomePageState extends ConsumerState<_FacultyHomePage> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppTheme.dangerColor.withOpacity(0.1),
+                color: AppTheme.dangerColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
@@ -683,58 +1006,161 @@ class _FacultyHomePageState extends ConsumerState<_FacultyHomePage> {
 //  Private Widgets
 // ═══════════════════════════════════════════════
 
-class _ActionCard extends StatelessWidget {
+class _HeaderStat extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+
+  const _HeaderStat({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 16, color: Colors.white.withValues(alpha: 0.7)),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: Colors.white.withValues(alpha: 0.6),
+                fontSize: 9,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickActionCard extends StatelessWidget {
   final IconData icon;
   final String label;
-  final String sublabel;
-  final Color? sublabelColor;
+  final Color color;
   final VoidCallback onTap;
 
-  const _ActionCard({
+  const _QuickActionCard({
     required this.icon,
     required this.label,
-    required this.sublabel,
-    this.sublabelColor,
+    required this.color,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.1)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: Colors.white, size: 24),
-            const SizedBox(height: 12),
-            Text(
-              label,
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 18, color: color),
               ),
-            ),
-            if (sublabel.isNotEmpty) ...[
-              const SizedBox(height: 2),
-              Text(
-                sublabel,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: sublabelColor ?? Colors.white.withOpacity(0.6),
-                  fontWeight: FontWeight.w500,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  label,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
                 ),
               ),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 12,
+                color: AppTheme.textTertiary,
+              ),
             ],
-          ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _EmptyCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Widget? action;
+
+  const _EmptyCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.action,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            icon,
+            size: 36,
+            color: AppTheme.textTertiary.withValues(alpha: 0.4),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: AppTheme.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AppTheme.textTertiary,
+            ),
+          ),
+          if (action != null) ...[const SizedBox(height: 12), action!],
+        ],
       ),
     );
   }
@@ -761,21 +1187,21 @@ class _TodayClassCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: isActive
             ? Border.all(
-                color: AppTheme.successColor.withOpacity(0.3),
+                color: AppTheme.successColor.withValues(alpha: 0.3),
                 width: 2,
               )
-            : Border.all(color: Colors.black.withOpacity(0.04)),
+            : Border.all(color: Colors.black.withValues(alpha: 0.04)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -785,15 +1211,12 @@ class _TodayClassCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: isActive
-                      ? AppTheme.successColor.withOpacity(0.1)
-                      : AppTheme.primaryColor.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(8),
+                      ? AppTheme.successColor.withValues(alpha: 0.1)
+                      : AppTheme.primaryColor.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   time,
@@ -802,6 +1225,7 @@ class _TodayClassCard extends StatelessWidget {
                         ? AppTheme.successColor
                         : AppTheme.primaryColor,
                     fontWeight: FontWeight.w700,
+                    fontSize: 11,
                   ),
                 ),
               ),
@@ -813,15 +1237,15 @@ class _TodayClassCard extends StatelessWidget {
                     vertical: 3,
                   ),
                   decoration: BoxDecoration(
-                    color: AppTheme.successColor.withOpacity(0.1),
+                    color: AppTheme.successColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        width: 6,
-                        height: 6,
+                        width: 5,
+                        height: 5,
                         decoration: const BoxDecoration(
                           color: AppTheme.successColor,
                           shape: BoxShape.circle,
@@ -842,14 +1266,14 @@ class _TodayClassCard extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             title,
-            style: theme.textTheme.titleMedium?.copyWith(
+            style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             subtitle,
             style: theme.textTheme.bodySmall?.copyWith(
@@ -857,35 +1281,36 @@ class _TodayClassCard extends StatelessWidget {
             ),
           ),
           if (location.isNotEmpty) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Row(
               children: [
-                Icon(Icons.place, size: 14, color: AppTheme.textTertiary),
-                const SizedBox(width: 4),
+                Icon(Icons.place, size: 12, color: AppTheme.textTertiary),
+                const SizedBox(width: 3),
                 Text(
                   location,
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: AppTheme.textTertiary,
+                    fontSize: 10,
                   ),
                 ),
               ],
             ),
           ],
           if (isActive && onStartAttendance != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: onStartAttendance,
-                icon: const Icon(Icons.sensors, size: 18),
+                icon: const Icon(Icons.sensors, size: 16),
                 label: const Text('Start Attendance'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor,
                   foregroundColor: Colors.white,
                   elevation: 0,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
               ),
@@ -902,39 +1327,42 @@ class _SubjectTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final String studentCount;
+  final int attendancePct;
 
   const _SubjectTile({
     required this.code,
     required this.title,
     required this.subtitle,
     required this.studentCount,
+    this.attendancePct = 0,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final badgeColor = attendancePct >= 75
+        ? AppTheme.successColor
+        : attendancePct >= 50
+        ? AppTheme.warningColor
+        : attendancePct > 0
+        ? AppTheme.dangerColor
+        : AppTheme.textTertiary;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black.withOpacity(0.04)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
       ),
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(12),
+              color: AppTheme.primaryColor.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Center(
               child: Text(
@@ -942,11 +1370,12 @@ class _SubjectTile extends StatelessWidget {
                 style: theme.textTheme.titleSmall?.copyWith(
                   color: AppTheme.primaryColor,
                   fontWeight: FontWeight.w800,
+                  fontSize: 13,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -955,39 +1384,59 @@ class _SubjectTile extends StatelessWidget {
                   title,
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
+                    fontSize: 13,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 1),
                 Text(
                   subtitle,
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: AppTheme.textTertiary,
+                    fontSize: 10,
                   ),
                 ),
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.people, size: 14, color: AppTheme.primaryColor),
-                const SizedBox(width: 4),
-                Text(
-                  studentCount,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: AppTheme.primaryColor,
-                    fontWeight: FontWeight.w700,
-                  ),
+          if (attendancePct > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: badgeColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '$attendancePct%',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: badgeColor,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11,
                 ),
-              ],
+              ),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.people, size: 12, color: AppTheme.primaryColor),
+                  const SizedBox(width: 3),
+                  Text(
+                    studentCount,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: AppTheme.primaryColor,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );

@@ -45,71 +45,78 @@ class AuthNotifier extends Notifier<AuthState> {
     // It's safe to read here.
     _authService = ref.read(authServiceProvider);
     _checkAuthStatus();
-    return AuthState();
+    // Start with isLoading=true so the splash screen shows while we check stored credentials
+    return AuthState(isLoading: true);
   }
 
   Future<void> _checkAuthStatus() async {
-    final isAuth = await _authService.isAuthenticated();
-    if (isAuth) {
-      // Restore user data from secure storage
-      final userId = await _authService.getUserId();
-      final role = await _authService.getUserRoleEnum();
+    try {
+      final isAuth = await _authService.isAuthenticated();
+      if (isAuth) {
+        // Restore user data from secure storage
+        final userId = await _authService.getUserId();
+        final role = await _authService.getUserRoleEnum();
 
-      if (userId != null && role != null) {
-        state = state.copyWith(
-          isAuthenticated: true,
-          user: UserModel(id: userId, username: '', name: '', role: role),
-        );
+        if (userId != null && role != null) {
+          // Immediately show the dashboard with basic info (no name yet)
+          // so the user doesn't wait for the network profile fetch
+          final storedName = await _authService.getUserName();
+          state = state.copyWith(
+            isLoading: false,
+            isAuthenticated: true,
+            user: UserModel(
+              id: userId,
+              username: '',
+              name: storedName ?? '',
+              role: role,
+            ),
+          );
 
-        // Fetch full profile from backend to get the actual name
-        try {
-          final dio = Dio();
-          final token = await _authService.getToken();
-          String? profileEndpoint;
-          if (role == UserRole.student) {
-            profileEndpoint = '${ApiEndpoints.baseUrl}/student/profile';
-          } else if (role == UserRole.faculty) {
-            profileEndpoint = '${ApiEndpoints.baseUrl}/faculty/profile';
-          }
-          // Admin has no profile endpoint — skip fetch
-
-          if (profileEndpoint != null) {
-            final response = await dio.get(
-              profileEndpoint,
-              options: Options(headers: {'Authorization': 'Bearer $token'}),
-            );
-            final profile = response.data['profile'] ?? response.data['user'];
-            if (profile != null) {
-              state = state.copyWith(
-                user: UserModel(
-                  id: userId,
-                  username: profile['username'] ?? '',
-                  name: profile['name'] ?? '',
-                  role: role,
-                  department: profile['department'],
-                ),
-              );
+          // Then fetch full profile in background to update name/department
+          try {
+            final dio = Dio();
+            final token = await _authService.getToken();
+            String? profileEndpoint;
+            if (role == UserRole.student) {
+              profileEndpoint = '${ApiEndpoints.baseUrl}/student/profile';
+            } else if (role == UserRole.faculty) {
+              profileEndpoint = '${ApiEndpoints.baseUrl}/faculty/profile';
             }
-          } else {
-            // For admin, restore name from storage
-            final storedName = await _authService.getUserName();
-            state = state.copyWith(
-              user: UserModel(
-                id: userId,
-                username: '',
-                name: storedName ?? 'Admin',
-                role: role,
-              ),
-            );
+            // Admin has no profile endpoint — skip fetch
+
+            if (profileEndpoint != null) {
+              final response = await dio.get(
+                profileEndpoint,
+                options: Options(headers: {'Authorization': 'Bearer $token'}),
+              );
+              final profile = response.data['profile'] ?? response.data['user'];
+              if (profile != null) {
+                state = state.copyWith(
+                  user: UserModel(
+                    id: userId,
+                    username: profile['username'] ?? '',
+                    name: profile['name'] ?? '',
+                    role: role,
+                    department: profile['department'],
+                  ),
+                );
+              }
+            }
+          } catch (e) {
+            // Profile fetch failed — keep the basic user info, they're still authenticated
           }
-        } catch (e) {
-          // Profile fetch failed — keep the basic user info, they're still authenticated
+        } else {
+          // Invalid stored data — force logout
+          await _authService.logout();
+          state = AuthState(isLoading: false);
         }
       } else {
-        // Invalid stored data — force logout
-        await _authService.logout();
-        state = AuthState();
+        // Not authenticated — show login screen
+        state = AuthState(isLoading: false);
       }
+    } catch (e) {
+      // Any error during auth check — show login screen
+      state = AuthState(isLoading: false);
     }
   }
 

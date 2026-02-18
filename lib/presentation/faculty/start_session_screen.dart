@@ -9,7 +9,9 @@ import '../../core/constants/app_constants.dart';
 import '../../data/data_sources/location_service.dart';
 
 class StartSessionScreen extends StatefulWidget {
-  const StartSessionScreen({super.key});
+  final Map<String, dynamic>? existingSession;
+
+  const StartSessionScreen({super.key, this.existingSession});
 
   @override
   State<StartSessionScreen> createState() => _StartSessionScreenState();
@@ -41,6 +43,52 @@ class _StartSessionScreenState extends State<StartSessionScreen>
   void initState() {
     super.initState();
     _loadClasses();
+
+    // Resume session if provided
+    if (widget.existingSession != null) {
+      _resumeSession(widget.existingSession!);
+    }
+  }
+
+  void _resumeSession(Map<String, dynamic> session) {
+    _sessionStarted = true;
+    _sessionId = session['id']?.toString();
+    _sessionCode = session['session_code'] ?? '';
+    _selectedClassId = session['class_id']?.toString();
+    _selectedClassName = session['subject'] ?? 'Unknown Class';
+    _scannedCount = int.tryParse('${session['present_count']}') ?? 0;
+
+    // Calculate elapsed time
+    try {
+      final startTimeStr = session['started_at']?.toString();
+      if (startTimeStr != null) {
+        final startTime = DateTime.parse(startTimeStr);
+        final diff = DateTime.now().difference(startTime);
+        _sessionSeconds = diff.inSeconds;
+      }
+    } catch (_) {
+      _sessionSeconds = 0;
+    }
+
+    // Start timers
+    _startTimers();
+  }
+
+  void _startTimers() {
+    _sessionTimer?.cancel();
+    _sessionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() => _sessionSeconds++);
+      }
+    });
+
+    _liveStatsTimer?.cancel();
+    _liveStatsTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      _fetchLiveStats();
+    });
+
+    // Initial fetch
+    _fetchLiveStats();
   }
 
   @override
