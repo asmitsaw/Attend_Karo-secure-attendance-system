@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:math' show asin, sqrt;
 import '../../../core/constants/app_constants.dart';
@@ -11,6 +12,7 @@ class LocationService {
     // Check if location services are enabled
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
+      debugPrint('📍 Location services are DISABLED');
       return false;
     }
 
@@ -18,32 +20,78 @@ class LocationService {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
+        debugPrint('📍 Location permission DENIED');
         return false;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
+      debugPrint('📍 Location permission DENIED FOREVER');
       return false;
     }
 
+    debugPrint('📍 Location permission granted');
     return true;
   }
 
-  /// Get current location with high accuracy
+  /// Get current location with high accuracy.
+  /// Uses a generous timeout and falls back to medium accuracy if high fails.
   Future<Position?> getCurrentLocation() async {
     try {
       bool hasPermission = await checkAndRequestPermission();
       if (!hasPermission) {
+        debugPrint('📍 getCurrentLocation: No permission');
         return null;
       }
 
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
-      );
+      // Try high accuracy first with generous timeout
+      // (GPS may need time to re-acquire after fake GPS apps)
+      try {
+        debugPrint('📍 Attempting high-accuracy GPS fix (30s timeout)...');
+        Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 30),
+        );
+        debugPrint(
+          '📍 Got position: ${position.latitude}, ${position.longitude} (accuracy: ${position.accuracy}m)',
+        );
+        return position;
+      } catch (e) {
+        debugPrint('📍 High-accuracy GPS failed: $e');
+        debugPrint('📍 Retrying with medium accuracy (15s timeout)...');
+      }
 
-      return position;
+      // Fallback: try medium accuracy (uses WiFi/cell towers, much faster)
+      try {
+        Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.medium,
+          timeLimit: const Duration(seconds: 15),
+        );
+        debugPrint(
+          '📍 Got position (medium): ${position.latitude}, ${position.longitude} (accuracy: ${position.accuracy}m)',
+        );
+        return position;
+      } catch (e) {
+        debugPrint('📍 Medium-accuracy GPS also failed: $e');
+      }
+
+      // Last resort: try to get last known position
+      try {
+        Position? lastPosition = await Geolocator.getLastKnownPosition();
+        if (lastPosition != null) {
+          debugPrint(
+            '📍 Using last known position: ${lastPosition.latitude}, ${lastPosition.longitude}',
+          );
+          return lastPosition;
+        }
+      } catch (e) {
+        debugPrint('📍 getLastKnownPosition failed: $e');
+      }
+
+      debugPrint('📍 All location methods failed');
+      return null;
     } catch (e) {
+      debugPrint('📍 getCurrentLocation unexpected error: $e');
       return null;
     }
   }
@@ -124,11 +172,12 @@ class LocationService {
     try {
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
       );
 
       return position.isMocked;
     } catch (e) {
-      return true; // If can't determine, assume mock for safety
+      return false; // If can't determine, let server-side geo-fence handle it
     }
   }
 }

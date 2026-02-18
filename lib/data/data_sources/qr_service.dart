@@ -9,8 +9,8 @@ class QRService {
       final data = jsonDecode(qrData);
       final String timestampStr = data['timestamp'];
 
-      final qrTimestamp = DateTime.parse(timestampStr);
-      final now = DateTime.now();
+      final qrTimestamp = DateTime.parse(timestampStr).toUtc();
+      final now = DateTime.now().toUtc();
 
       final difference = now.difference(qrTimestamp).inSeconds.abs();
 

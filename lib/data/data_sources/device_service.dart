@@ -21,6 +21,7 @@ class DeviceService {
     if (Platform.isAndroid) {
       final androidInfo = await _deviceInfo.androidInfo;
       deviceId = androidInfo.id; // androidId
+    } else if (Platform.isIOS) {
       final iosInfo = await _deviceInfo.iosInfo;
       deviceId = iosInfo.identifierForVendor ?? 'unknown';
     } else if (Platform.isWindows) {

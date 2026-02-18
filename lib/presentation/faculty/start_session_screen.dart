@@ -124,8 +124,12 @@ class _StartSessionScreenState extends State<StartSessionScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text(
-            'Unable to get your location. Please ensure GPS is enabled and try again.',
+            'Unable to get your location. Please ensure:\n'
+            '• GPS is enabled (toggle OFF/ON to reset)\n'
+            '• Mock/fake location apps are disabled\n'
+            '• You are in an open area for GPS signal',
           ),
+          duration: const Duration(seconds: 6),
           backgroundColor: AppTheme.dangerColor,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
