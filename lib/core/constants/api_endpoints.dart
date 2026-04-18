@@ -3,7 +3,7 @@ class ApiEndpoints {
   // 2. For Testing: Run with: flutter run --dart-define=API_URL=http://YOUR_IP:5000/api
   static const String baseUrl = String.fromEnvironment(
     'API_URL',
-    defaultValue: 'https://attend-karo-backend.onrender.com/api',
+    defaultValue: 'https://attend-karo-backend-97bt.onrender.com/api',
   );
 
   // Authentication
