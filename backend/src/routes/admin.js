@@ -14,6 +14,7 @@ const {
     getStudentsByBatch,
     resetStudentDevice,
     getSystemStats,
+    sendBatchAttendanceReport,
 } = require('../controllers/adminController');
 
 const upload = multer({
@@ -39,6 +40,7 @@ router.get('/batch/:batchId/students', getStudentsByBatch); // Added
 router.get('/batch/:batchId/credentials', downloadCredentials);
 router.post('/batch/:batchId/regenerate', regenerateBatchCredentials);
 router.delete('/batch/:batchId', deleteBatch);
+router.post('/batch/:batchId/send-attendance-report', sendBatchAttendanceReport);
 
 // Device change requests
 router.get('/device-requests', getDeviceChangeRequests);

@@ -22,6 +22,8 @@ class ApiEndpoints {
   static const String getSystemStats = '$baseUrl/admin/system-stats';
   static String approveDeviceRequest(String requestId) =>
       '$baseUrl/admin/device-requests/$requestId';
+  static String sendAttendanceReport(String batchId) =>
+      '$baseUrl/admin/batch/$batchId/send-attendance-report';
 
   // Faculty Endpoints
   static const String getFacultyBatches = '$baseUrl/faculty/batches';

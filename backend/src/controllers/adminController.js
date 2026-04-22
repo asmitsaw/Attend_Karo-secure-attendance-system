@@ -4,6 +4,7 @@ const csv = require('csv-parser');
 const path = require('path');
 const crypto = require('crypto');
 const { hashPassword } = require('../utils/hash');
+const { createTransporter, sendAttendanceEmail } = require('../utils/emailService');
 
 /**
  * Generate a cryptographically secure random password (8 chars, alphanumeric)
@@ -500,6 +501,140 @@ async function getSystemStats(req, res) {
     }
 }
 
+/**
+ * Send personalised attendance report emails to all students in a batch
+ */
+async function sendBatchAttendanceReport(req, res) {
+    const { batchId } = req.params;
+
+    try {
+        // 1. Get batch info
+        const batchRes = await db.query(
+            `SELECT id, batch_name, department, section, current_semester
+             FROM academic_batches WHERE id = $1`, [batchId]
+        );
+        if (batchRes.rows.length === 0) {
+            return res.status(404).json({ message: 'Batch not found' });
+        }
+        const batch = batchRes.rows[0];
+
+        // 2. Get all students in the batch
+        const studentsRes = await db.query(
+            `SELECT s.id, s.roll_number, u.name, u.email
+             FROM students s
+             JOIN users u ON s.id = u.id
+             WHERE s.batch_id = $1
+             ORDER BY s.roll_number`, [batchId]
+        );
+
+        if (studentsRes.rows.length === 0) {
+            return res.status(404).json({ message: 'No students found in this batch' });
+        }
+
+        // 3. For each student, get all classes they are enrolled in and their attendance
+        const studentIds = studentsRes.rows.map(s => s.id);
+        const placeholders = studentIds.map((_, i) => `$${i + 1}`).join(',');
+
+        // Get all class enrollments for these students with class info
+        const enrollmentsRes = await db.query(
+            `SELECT ce.student_id, ce.class_id, c.subject, c.faculty_id,
+                    (SELECT COUNT(*) FROM attendance_sessions WHERE class_id = ce.class_id AND is_active = false) as total_sessions,
+                    (SELECT COUNT(*) FROM attendance_records ar
+                     JOIN attendance_sessions asess ON ar.session_id = asess.id
+                     WHERE ar.student_id = ce.student_id AND asess.class_id = ce.class_id AND ar.status = 'PRESENT') as attended_sessions
+             FROM class_enrollments ce
+             JOIN classes c ON ce.class_id = c.id
+             WHERE ce.student_id IN (${placeholders})`,
+            studentIds
+        );
+
+        // Build a map: studentId -> array of class attendance
+        const studentClassMap = {};
+        for (const row of enrollmentsRes.rows) {
+            if (!studentClassMap[row.student_id]) {
+                studentClassMap[row.student_id] = [];
+            }
+            const total = parseInt(row.total_sessions) || 0;
+            const attended = parseInt(row.attended_sessions) || 0;
+            studentClassMap[row.student_id].push({
+                subject: row.subject,
+                attended,
+                total,
+                percentage: total > 0 ? (attended / total) * 100 : 0,
+            });
+        }
+
+        // 4. Create transporter
+        let transporter;
+        try {
+            transporter = createTransporter();
+            // Verify SMTP connection
+            await transporter.verify();
+        } catch (smtpError) {
+            console.error('SMTP connection failed:', smtpError.message);
+            return res.status(500).json({
+                message: `Email service not configured properly. Please set SMTP_HOST, SMTP_USER, SMTP_PASS in .env. Error: ${smtpError.message}`
+            });
+        }
+
+        // 5. Send emails
+        const results = { sent: 0, failed: 0, skipped: 0, errors: [] };
+
+        for (const student of studentsRes.rows) {
+            // Skip if no email
+            if (!student.email) {
+                results.skipped++;
+                results.errors.push(`${student.roll_number} (${student.name}): No email address`);
+                continue;
+            }
+
+            const classAttendance = studentClassMap[student.id] || [];
+            const totalAttended = classAttendance.reduce((sum, c) => sum + c.attended, 0);
+            const totalSessions = classAttendance.reduce((sum, c) => sum + c.total, 0);
+            const totalPercentage = totalSessions > 0 ? (totalAttended / totalSessions) * 100 : 0;
+
+            const studentData = {
+                name: student.name,
+                rollNumber: student.roll_number,
+                email: student.email,
+                batchName: batch.batch_name,
+                department: batch.department,
+                section: batch.section,
+                semester: batch.current_semester,
+                classAttendance,
+                totalAttended,
+                totalSessions,
+                totalPercentage,
+            };
+
+            try {
+                await sendAttendanceEmail(transporter, studentData);
+                results.sent++;
+            } catch (emailErr) {
+                results.failed++;
+                results.errors.push(`${student.roll_number} (${student.name}): ${emailErr.message}`);
+                console.error(`Failed to send email to ${student.email}:`, emailErr.message);
+            }
+        }
+
+        // 6. Close pool
+        transporter.close();
+
+        res.json({
+            message: `Attendance report emails processed for batch "${batch.batch_name}"`,
+            totalStudents: studentsRes.rows.length,
+            sent: results.sent,
+            failed: results.failed,
+            skipped: results.skipped,
+            errors: results.errors,
+        });
+
+    } catch (error) {
+        console.error('Send batch attendance report error:', error);
+        res.status(500).json({ message: 'Server error sending attendance reports' });
+    }
+}
+
 module.exports = {
     uploadStudents,
     updateBatch,
@@ -512,6 +647,7 @@ module.exports = {
     getStudentsByBatch,
     resetStudentDevice,
     getSystemStats,
+    sendBatchAttendanceReport,
 };
 
 /**

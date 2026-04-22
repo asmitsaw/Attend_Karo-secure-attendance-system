@@ -32,6 +32,7 @@ class _BatchDetailsScreenState extends State<BatchDetailsScreen> {
   bool _isDownloading = false;
   bool _isRegenerating = false;
   bool _isDeleting = false;
+  bool _isSendingReport = false;
 
   List<Map<String, dynamic>> _students = [];
   bool _isLoadingStudents = true;
@@ -415,6 +416,237 @@ class _BatchDetailsScreenState extends State<BatchDetailsScreen> {
     );
   }
 
+  Future<void> _confirmSendReport() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF19287B).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.email_rounded, color: Color(0xFF19287B), size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(child: Text('Send Attendance Report?', style: TextStyle(fontSize: 16))),
+          ],
+        ),
+        content: const Text(
+          '📧 This will send personalised attendance report emails to ALL students in this batch.\n\n'
+          'Each email will contain:\n'
+          '• Student details (Name, Roll No)\n'
+          '• Class-wise attendance (Present / Total)\n'
+          '• Per-class percentage with visual bars\n'
+          '• Overall attendance percentage\n'
+          '• Warning note if below 75%\n\n'
+          'Students without email addresses will be skipped.\n\n'
+          'Continue?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.send_rounded, size: 18),
+            label: const Text('Send Emails'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF19287B),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      _sendAttendanceReport();
+    }
+  }
+
+  Future<void> _sendAttendanceReport() async {
+    setState(() => _isSendingReport = true);
+
+    // Show progress dialog
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  SizedBox(
+                    width: 60,
+                    height: 60,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 5,
+                      color: AppTheme.primaryColor,
+                      backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+                    ),
+                  ),
+                  const Icon(Icons.email_rounded, color: AppTheme.primaryColor, size: 24),
+                ],
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Sending Attendance Reports...',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Personalised emails are being sent to all students.\nThis may take a few minutes.',
+                style: TextStyle(color: AppTheme.textTertiary, fontSize: 13),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      );
+    }
+
+    try {
+      final token = await _storage.read(key: AppConstants.keyAuthToken);
+
+      final response = await _dio.post(
+        ApiEndpoints.sendAttendanceReport(widget.batch['id'].toString()),
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          receiveTimeout: const Duration(minutes: 5),
+        ),
+      );
+
+      // Dismiss progress dialog
+      if (mounted) Navigator.of(context).pop();
+
+      final data = response.data;
+      final sent = data['sent'] ?? 0;
+      final failed = data['failed'] ?? 0;
+      final skipped = data['skipped'] ?? 0;
+      final errors = List<String>.from(data['errors'] ?? []);
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: sent > 0
+                        ? AppTheme.successColor.withValues(alpha: 0.1)
+                        : AppTheme.dangerColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    sent > 0 ? Icons.check_circle : Icons.error_outline,
+                    color: sent > 0 ? AppTheme.successColor : AppTheme.dangerColor,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(child: Text('Report Summary', style: TextStyle(fontSize: 16))),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildReportStatRow('✅ Sent', '$sent', AppTheme.successColor),
+                  const SizedBox(height: 8),
+                  _buildReportStatRow('❌ Failed', '$failed', AppTheme.dangerColor),
+                  const SizedBox(height: 8),
+                  _buildReportStatRow('⏭️ Skipped (No Email)', '$skipped', AppTheme.warningColor),
+                  if (errors.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const Text('Issues:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    const SizedBox(height: 6),
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 150),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.backgroundLight,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: errors.map((e) => Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text('• $e', style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+                          )).toList(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      // Dismiss progress dialog
+      if (mounted) Navigator.of(context).pop();
+
+      if (mounted) {
+        String errorMsg = 'Failed to send reports';
+        if (e is DioException && e.response?.data != null) {
+          errorMsg = e.response?.data['message'] ?? errorMsg;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            backgroundColor: AppTheme.dangerColor,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSendingReport = false);
+    }
+  }
+
+  Widget _buildReportStatRow(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontSize: 13, color: color, fontWeight: FontWeight.w600)),
+          Text(value, style: TextStyle(fontSize: 16, color: color, fontWeight: FontWeight.w800)),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -561,6 +793,53 @@ class _BatchDetailsScreenState extends State<BatchDetailsScreen> {
               ),
 
               const SizedBox(height: 16),
+
+              // ── Send Attendance Report Email Button ──
+              Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF19287B), Color(0xFF6200EA)],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF19287B).withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: ElevatedButton.icon(
+                  onPressed: _isSendingReport ? null : _confirmSendReport,
+                  icon: _isSendingReport
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(Icons.email_rounded, size: 22),
+                  label: Text(
+                    _isSendingReport
+                        ? 'Sending Reports...'
+                        : '📧 Send Attendance Report to All Students',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    shadowColor: Colors.transparent,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
 
               TextButton.icon(
                 onPressed: _isRegenerating ? null : _confirmRegenerate,
