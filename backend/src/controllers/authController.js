@@ -82,6 +82,27 @@ async function login(req, res) {
     }
 }
 
+async function contactAdmin(req, res) {
+    try {
+        const { emailOrId, message } = req.body;
+
+        if (!emailOrId || !message) {
+            return res.status(400).json({ message: 'Email/ID and message are required' });
+        }
+
+        await db.query(
+            'INSERT INTO support_tickets (email_or_id, message) VALUES ($1, $2)',
+            [emailOrId, message]
+        );
+
+        res.json({ message: 'Support ticket created successfully' });
+    } catch (error) {
+        console.error('[AUTH] Contact admin error:', error.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+}
+
 module.exports = {
     login,
+    contactAdmin,
 };

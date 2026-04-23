@@ -68,6 +68,32 @@ class AuthService {
       return {'success': false, 'message': 'An unexpected error occurred'};
     }
   }
+  /// Contact Admin (no auth required)
+  Future<Map<String, dynamic>> contactAdmin(
+      String emailOrId, String message) async {
+    try {
+      final response = await _dio.post(
+        '${ApiEndpoints.baseUrl}/auth/contact-admin',
+        data: {
+          'emailOrId': emailOrId,
+          'message': message,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': response.data['message']};
+      } else {
+        return {'success': false, 'message': 'Failed to send message'};
+      }
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': e.response?.data['message'] ?? 'Network error occurred',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'An unexpected error occurred'};
+    }
+  }
 
   /// Logout
   Future<void> logout() async {

@@ -510,25 +510,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                       ),
                                 ),
                               ),
-                              const Spacer(),
-                              // ── Forgot Password ──
-                              TextButton(
-                                onPressed: () {},
-                                style: TextButton.styleFrom(
-                                  padding: EdgeInsets.zero,
-                                  minimumSize: const Size(0, 32),
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                child: Text(
-                                  'Forgot Password?',
-                                  style: Theme.of(context).textTheme.bodySmall
-                                      ?.copyWith(
-                                        color: AppTheme.primaryColor,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                ),
-                              ),
                             ],
                           ),
                           const SizedBox(height: 8),
@@ -619,19 +600,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             ),
                           ),
                           const SizedBox(height: 24),
-
-                          // ── Biometric FaceID ──
-                          IconButton(
-                            onPressed: () {},
-                            iconSize: 44,
-                            color: AppTheme.textTertiary,
-                            icon: const Icon(Icons.face),
-                          ),
-                          Text(
-                            'Use FaceID',
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(color: AppTheme.textTertiary),
-                          ),
                         ],
                       ),
                     ),
@@ -657,13 +625,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     ],
                   ),
                   const SizedBox(height: 16),
-                  TextButton(
-                    onPressed: () {},
-                    child: Text(
+                  TextButton.icon(
+                    onPressed: () => _showContactAdminForm(context),
+                    icon: const Icon(Icons.support_agent, size: 18),
+                    label: Text(
                       'Need Help? Contact Admin',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.textTertiary,
-                        fontWeight: FontWeight.w500,
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -673,6 +642,124 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+  void _showContactAdminForm(BuildContext context) {
+    final theme = Theme.of(context);
+    final emailController = TextEditingController();
+    final messageController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom,
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(24),
+              topRight: Radius.circular(24),
+            ),
+          ),
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Contact Admin',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Having trouble logging in or need help? Send a message to the administrator.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: emailController,
+                  decoration: InputDecoration(
+                    labelText: 'Your Email or ID',
+                    hintText: 'e.g. 2023CS001',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  validator: (v) =>
+                      v == null || v.isEmpty ? 'Required' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: messageController,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    labelText: 'Message',
+                    hintText: 'Describe your issue...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  validator: (v) => v == null || v.length < 10
+                      ? 'Please enter at least 10 characters'
+                      : null,
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      if (!formKey.currentState!.validate()) return;
+                      
+                      final result = await ref.read(authServiceProvider).contactAdmin(
+                        emailController.text.trim(),
+                        messageController.text.trim(),
+                      );
+                      
+                      if (ctx.mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(result['message'] ?? (result['success'] ? 'Message sent' : 'Failed')),
+                            backgroundColor: result['success'] ? AppTheme.successColor : AppTheme.dangerColor,
+                          ),
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('Send Message'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

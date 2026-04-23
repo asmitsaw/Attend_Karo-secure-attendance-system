@@ -197,19 +197,44 @@ class _AdminHomePageState extends ConsumerState<_AdminHomePage> {
                           fontWeight: FontWeight.w400,
                         ),
                       ),
-                      IconButton(
-                        onPressed: () {
-                          HapticFeedback.lightImpact();
-                          _showLogoutDialog(context, ref);
-                        },
-                        icon: Icon(
-                          Icons.logout,
-                          color: Colors.white.withValues(alpha: 0.85),
-                          size: 20,
-                        ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        tooltip: 'Logout',
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            onPressed: () {
+                              HapticFeedback.lightImpact();
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const SupportTicketsScreen(),
+                                ),
+                              );
+                            },
+                            icon: Icon(
+                              Icons.support_agent,
+                              color: Colors.white.withValues(alpha: 0.85),
+                              size: 20,
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            tooltip: 'Support Tickets',
+                          ),
+                          const SizedBox(width: 16),
+                          IconButton(
+                            onPressed: () {
+                              HapticFeedback.lightImpact();
+                              _showLogoutDialog(context, ref);
+                            },
+                            icon: Icon(
+                              Icons.logout,
+                              color: Colors.white.withValues(alpha: 0.85),
+                              size: 20,
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            tooltip: 'Logout',
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -1577,6 +1602,145 @@ class _DeviceRequestCard extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class SupportTicketsScreen extends StatefulWidget {
+  const SupportTicketsScreen({super.key});
+
+  @override
+  State<SupportTicketsScreen> createState() => _SupportTicketsScreenState();
+}
+
+class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
+  final Dio _dio = Dio();
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  List<dynamic> _tickets = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _dio.options.baseUrl = ApiEndpoints.baseUrl;
+    _fetchTickets();
+  }
+
+  Future<void> _fetchTickets() async {
+    setState(() => _isLoading = true);
+    try {
+      final token = await _storage.read(key: AppConstants.keyAuthToken);
+      if (token == null) return;
+
+      final response = await _dio.get(
+        '${ApiEndpoints.baseUrl}/admin/support-tickets',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (mounted) {
+        setState(() {
+          _tickets = response.data['tickets'] ?? [];
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Support Tickets')),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _tickets.isEmpty
+          ? const Center(child: Text('No support tickets.'))
+          : RefreshIndicator(
+              onRefresh: _fetchTickets,
+              child: ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: _tickets.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final t = _tickets[index];
+                  final status = t['status'] ?? 'OPEN';
+                  final dateStr = t['created_at'];
+                  String formattedDate = '';
+                  if (dateStr != null) {
+                    try {
+                      final d = DateTime.parse(dateStr.toString()).toLocal();
+                      formattedDate =
+                          '${d.day}/${d.month}/${d.year} ${d.hour}:${d.minute.toString().padLeft(2, '0')}';
+                    } catch (_) {}
+                  }
+
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              t['email_or_id'] ?? 'Unknown',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: status == 'OPEN'
+                                    ? Colors.orange.shade100
+                                    : Colors.green.shade100,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                status,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: status == 'OPEN'
+                                      ? Colors.orange.shade800
+                                      : Colors.green.shade800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(t['message'] ?? ''),
+                        const SizedBox(height: 12),
+                        Text(
+                          formattedDate,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
     );
   }
 }

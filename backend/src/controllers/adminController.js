@@ -648,7 +648,25 @@ module.exports = {
     resetStudentDevice,
     getSystemStats,
     sendBatchAttendanceReport,
+    getSupportTickets,
 };
+
+/**
+ * Get all support tickets
+ */
+async function getSupportTickets(req, res) {
+    try {
+        const result = await db.query(
+            `SELECT id, email_or_id, message, status, created_at 
+             FROM support_tickets 
+             ORDER BY CASE WHEN status = 'OPEN' THEN 0 ELSE 1 END, created_at DESC`
+        );
+        res.json({ tickets: result.rows });
+    } catch (error) {
+        console.error('Get support tickets error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+}
 
 /**
  * Get all students in a batch

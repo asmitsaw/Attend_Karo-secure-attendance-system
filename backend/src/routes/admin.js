@@ -47,4 +47,7 @@ router.get('/device-requests', getDeviceChangeRequests);
 router.put('/device-requests/:requestId', approveDeviceChange);
 router.put('/students/:studentId/reset-device', resetStudentDevice); // Added
 
+// Support Tickets
+router.get('/support-tickets', require('../controllers/adminController').getSupportTickets);
+
 module.exports = router;
