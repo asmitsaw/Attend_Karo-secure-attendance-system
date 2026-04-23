@@ -1385,7 +1385,7 @@ class _DeviceRequestCard extends StatelessWidget {
 
     String dateStr = '';
     try {
-      final d = DateTime.parse(request['created_at'].toString());
+      final d = DateTime.parse(request['created_at'].toString()).toLocal();
       const months = [
         '',
         'Jan',

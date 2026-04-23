@@ -225,7 +225,7 @@ class _FacultyHomePageState extends ConsumerState<_FacultyHomePage> {
     final weekStart = now.subtract(Duration(days: now.weekday - 1));
     return _sessionHistory.where((s) {
       try {
-        final d = DateTime.parse(s['created_at'] ?? '');
+        final d = DateTime.parse(s['created_at'] ?? '').toLocal();
         return d.isAfter(weekStart.subtract(const Duration(days: 1)));
       } catch (_) {
         return false;
@@ -237,7 +237,7 @@ class _FacultyHomePageState extends ConsumerState<_FacultyHomePage> {
     final now = DateTime.now();
     return _sessionHistory.where((s) {
       try {
-        final d = DateTime.parse(s['created_at'] ?? '');
+        final d = DateTime.parse(s['created_at'] ?? '').toLocal();
         return d.month == now.month && d.year == now.year;
       } catch (_) {
         return false;
@@ -717,7 +717,7 @@ class _FacultyHomePageState extends ConsumerState<_FacultyHomePage> {
                               try {
                                 final d = DateTime.parse(
                                   session['created_at'] ?? '',
-                                );
+                                ).toLocal();
                                 final diff = DateTime.now().difference(d);
                                 if (diff.inMinutes < 60) {
                                   timeAgo = '${diff.inMinutes}m ago';

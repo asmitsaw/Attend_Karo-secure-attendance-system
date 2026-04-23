@@ -905,7 +905,7 @@ class _HistoryCard extends StatelessWidget {
 
     String dateStr = '';
     try {
-      final d = DateTime.parse(session['start_time']);
+      final d = DateTime.parse(session['start_time']).toLocal();
       dateStr = DateFormat('MMM d, yyyy • h:mm a').format(d);
     } catch (_) {}
 

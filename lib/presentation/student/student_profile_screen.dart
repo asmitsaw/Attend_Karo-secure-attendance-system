@@ -750,7 +750,7 @@ class _StudentProfileScreenState extends ConsumerState<StudentProfileScreen> {
   String _formatDate(dynamic dateStr) {
     if (dateStr == null) return 'Unknown';
     try {
-      final d = DateTime.parse(dateStr.toString());
+      final d = DateTime.parse(dateStr.toString()).toLocal();
       const months = [
         '',
         'Jan',
