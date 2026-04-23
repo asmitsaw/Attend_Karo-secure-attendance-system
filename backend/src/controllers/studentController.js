@@ -1,6 +1,7 @@
 const db = require('../config/database');
 const { verifyQRSignature, validateQRTimestamp } = require('../utils/qr');
 const { isWithinGeofence, calculateDistance } = require('../utils/geo');
+const { calculateRiskScore, RISK_THRESHOLD } = require('../utils/riskEngine');
 
 /**
  * Get enrolled classes for student
@@ -31,7 +32,17 @@ async function getEnrolledClasses(req, res) {
  */
 async function markAttendance(req, res) {
     try {
-        const { session_id, qr_data, device_id, latitude, longitude } = req.body;
+        const { session_id, qr_data, device_id, latitude, longitude, qr_generated_at } = req.body;
+
+        // Capture scan IP — supports proxy/load-balancer headers
+        const scanIp =
+            req.headers['x-forwarded-for']?.split(',')[0].trim() ||
+            req.headers['x-real-ip'] ||
+            req.socket?.remoteAddress ||
+            req.ip ||
+            null;
+
+        const scanTimestamp = Date.now(); // ms when backend received request
         const studentId = req.user.userId;
 
         // Validate input
@@ -165,16 +176,45 @@ async function markAttendance(req, res) {
             return res.status(409).json({ message: 'Attendance already marked for this session' });
         }
 
-        // ALL VALIDATIONS PASSED - Mark attendance
+        // ALL VALIDATIONS PASSED — Calculate AI Proxy Risk Score
+        const riskResult = await calculateRiskScore({
+            sessionId: session_id,
+            studentId,
+            qrGeneratedAt: qr_generated_at ? parseInt(qr_generated_at) : null,
+            scanTimestamp,
+            scanIp,
+        });
+
+        const finalStatus = riskResult.isSuspicious ? 'SUSPICIOUS' : 'PRESENT';
+        const riskFlagsJson = riskResult.flags.length > 0 ? JSON.stringify(riskResult.flags) : null;
+
+        if (riskResult.isSuspicious) {
+            console.warn(
+                `[RISK ENGINE] SUSPICIOUS mark — Student=${studentId}, Score=${riskResult.score}, Flags=${riskResult.flags.join(' | ')}`
+            );
+        }
+
+        // Insert with risk metadata
         await db.query(
-            `INSERT INTO attendance_records (session_id, student_id, status, device_id, latitude, longitude)
-       VALUES ($1, $2, 'PRESENT', $3, $4, $5)`,
-            [session_id, studentId, device_id, latitude, longitude]
+            `INSERT INTO attendance_records
+               (session_id, student_id, status, device_id, latitude, longitude,
+                scan_ip, qr_generated_at, proxy_risk_score, risk_flags)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            [
+                session_id, studentId, finalStatus, device_id, latitude, longitude,
+                scanIp,
+                qr_generated_at ? new Date(parseInt(qr_generated_at)) : null,
+                riskResult.score,
+                riskFlagsJson,
+            ]
         );
 
         res.json({
-            message: 'Attendance marked successfully!',
-            status: 'PRESENT',
+            message: riskResult.isSuspicious
+                ? 'Attendance recorded but flagged for review.'
+                : 'Attendance marked successfully!',
+            status: finalStatus,
+            riskScore: riskResult.score,
         });
     } catch (error) {
         console.error('Mark attendance error:', error);

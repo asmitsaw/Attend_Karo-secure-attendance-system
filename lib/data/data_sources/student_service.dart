@@ -25,6 +25,7 @@ class StudentService {
     required String deviceId,
     required double latitude,
     required double longitude,
+    int? qrGeneratedAt, // Unix ms timestamp from QR token
   }) async {
     try {
       final response = await _dio.post(
@@ -35,11 +36,17 @@ class StudentService {
           'device_id': deviceId,
           'latitude': latitude,
           'longitude': longitude,
+          if (qrGeneratedAt != null) 'qr_generated_at': qrGeneratedAt,
         },
         options: await _authOptions(),
       );
 
-      return {'success': true, 'message': response.data['message']};
+      return {
+        'success': true,
+        'message': response.data['message'],
+        'status': response.data['status'],
+        'riskScore': response.data['riskScore'],
+      };
     } on DioException catch (e) {
       return {
         'success': false,

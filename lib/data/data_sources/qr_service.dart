@@ -30,6 +30,18 @@ class QRService {
     }
   }
 
+  /// Extract QR generation timestamp as Unix milliseconds (for risk engine)
+  int? extractQrGeneratedAtMs(String qrData) {
+    try {
+      final data = jsonDecode(qrData);
+      final String? timestampStr = data['timestamp'] as String?;
+      if (timestampStr == null) return null;
+      return DateTime.parse(timestampStr).toUtc().millisecondsSinceEpoch;
+    } catch (e) {
+      return null;
+    }
+  }
+
   /// Generate QR data (to be called by faculty - backend generates signature)
   /// This is a client-side helper. Backend will add signature.
   Map<String, dynamic> prepareQRData(String sessionId) {

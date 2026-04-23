@@ -8,6 +8,7 @@ const {
     startSession,
     endSession,
     getAnalytics,
+    getAnalyticsRisk,
     getClasses,
     getLiveCount,
     getSampleCSV,
@@ -49,6 +50,7 @@ router.get('/session/:sessionId/live-count', getLiveCount);
 router.get('/sessions/live', getLiveSessions);
 router.get('/sessions/history', getSessionHistory);
 router.get('/analytics', getAnalytics);
+router.get('/analytics/risk', getAnalyticsRisk);
 router.get('/sample-csv', getSampleCSV);
 router.post('/lectures/schedule', scheduleLecture);
 router.get('/lectures', getScheduledLectures);

@@ -35,6 +35,7 @@ class ApiEndpoints {
   static const String endSession = '$baseUrl/faculty/session/end';
   static const String getLiveCount = '$baseUrl/faculty/session/live-count';
   static const String getAnalytics = '$baseUrl/faculty/analytics';
+  static const String getAnalyticsRisk = '$baseUrl/faculty/analytics/risk';
   static const String getClassStudents =
       '$baseUrl/faculty/class'; // append /:classId/students
   static const String scheduleLecture = '$baseUrl/faculty/lectures/schedule';

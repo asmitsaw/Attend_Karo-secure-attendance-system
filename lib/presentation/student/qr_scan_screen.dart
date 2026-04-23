@@ -148,12 +148,15 @@ class _QRScanScreenState extends State<QRScanScreen>
     // Step 9: Backend call (Real)
     try {
       final studentService = StudentService();
+      // Extract QR generation timestamp for risk scoring
+      final qrGeneratedAt = _qrService.extractQrGeneratedAtMs(qrData);
       final result = await studentService.markAttendance(
         sessionId: sessionId,
         qrData: qrData,
         deviceId: deviceId,
         latitude: position.latitude,
         longitude: position.longitude,
+        qrGeneratedAt: qrGeneratedAt,
       );
 
       setState(() => _isProcessing = false);

@@ -22,6 +22,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   final Dio _dio = Dio();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   String? _selectedClassId; // null means 'All Classes'
+  bool _proxyExpanded = false; // collapse proxy list by default
 
   @override
   void initState() {
@@ -121,6 +122,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final List<dynamic> proxies = _data?['proxyAttempts'] ?? [];
     final int totalClasses = _data?['totalClasses'] ?? 0;
     final int totalSessions = _data?['totalSessions'] ?? 0;
+    final Map<String, dynamic> riskInsights =
+        (_data?['riskInsights'] as Map<String, dynamic>?) ?? {};
 
     // Filter/Select logic
     final selectedClass = _selectedClassId == null
@@ -282,6 +285,376 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           ),
           const SizedBox(height: 12),
           _buildProxyList(proxies),
+
+          // ── AI Risk Intelligence ──
+          const SizedBox(height: 32),
+          _buildRiskIntelligenceSection(riskInsights),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  // ─── AI Risk Intelligence Section ──────────────────────────────────────────
+
+  Widget _buildRiskIntelligenceSection(Map<String, dynamic> ri) {
+    final totals = (ri['totals'] as Map<String, dynamic>?) ?? {};
+    final dist   = (ri['distribution'] as Map<String, dynamic>?) ?? {};
+    final risky  = (ri['topRiskyStudents'] as List<dynamic>?) ?? [];
+    final sessRisk = (ri['sessionRisk'] as List<dynamic>?) ?? [];
+
+    final suspicious = totals['suspicious'] as int? ?? 0;
+    final clean      = totals['clean'] as int? ?? 0;
+    final totalMarks = totals['total'] as int? ?? 0;
+    final avgRisk    = (totals['avgRisk'] as num?)?.toDouble() ?? 0.0;
+
+    final low      = dist['low'] as int? ?? 0;
+    final moderate = dist['moderate'] as int? ?? 0;
+    final elevated = dist['elevated'] as int? ?? 0;
+    final high     = dist['high'] as int? ?? 0;
+    final distTotal = (low + moderate + elevated + high).clamp(1, 999999);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [const Color(0xFF1a1a2e), const Color(0xFF16213e)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.deepPurpleAccent.withOpacity(0.25),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.psychology, color: Colors.deepPurpleAccent, size: 26),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '🧠 AI Risk Intelligence',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      'Heuristic proxy detection engine · v1.0',
+                      style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+              if (suspicious > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppTheme.dangerColor.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: AppTheme.dangerColor.withOpacity(0.5)),
+                  ),
+                  child: Text(
+                    '$suspicious FLAGGED',
+                    style: const TextStyle(
+                      color: AppTheme.dangerColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Overview stats row
+        Row(
+          children: [
+            Expanded(child: _buildStatCard('Suspicious', '$suspicious',
+                Icons.gpp_bad, AppTheme.dangerColor)),
+            const SizedBox(width: 10),
+            Expanded(child: _buildStatCard('Clean Marks', '$clean',
+                Icons.verified_user, AppTheme.successColor)),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(child: _buildStatCard('Total Scans', '$totalMarks',
+                Icons.qr_code_scanner, AppTheme.primaryColor)),
+            const SizedBox(width: 10),
+            Expanded(child: _buildStatCard('Avg Risk', '${avgRisk.toStringAsFixed(0)}%',
+                Icons.analytics, const Color(0xFF9C27B0))),
+          ],
+        ),
+        const SizedBox(height: 20),
+
+        // Risk Score Distribution Bar
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Risk Score Distribution',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(height: 4),
+              Text('Based on $totalMarks total scan records',
+                  style: TextStyle(color: AppTheme.textTertiary, fontSize: 11)),
+              const SizedBox(height: 16),
+              _buildRiskDistributionBar('Low (0–24)', low, distTotal, const Color(0xFF4CAF50)),
+              const SizedBox(height: 8),
+              _buildRiskDistributionBar('Moderate (25–49)', moderate, distTotal, const Color(0xFFFF9800)),
+              const SizedBox(height: 8),
+              _buildRiskDistributionBar('Elevated (50–74)', elevated, distTotal, const Color(0xFFFF5722)),
+              const SizedBox(height: 8),
+              _buildRiskDistributionBar('High ≥75 (SUSPICIOUS)', high, distTotal, AppTheme.dangerColor),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Top Risky Students
+        if (risky.isNotEmpty) ...[
+          Row(
+            children: [
+              const Text('Flagged Students', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppTheme.dangerColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text('${risky.length}',
+                    style: TextStyle(color: AppTheme.dangerColor, fontWeight: FontWeight.bold, fontSize: 12)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...risky.map((s) => _buildRiskyStudentCard(s)),
+          const SizedBox(height: 20),
+        ],
+
+        // Session Risk Heatmap
+        if (sessRisk.isNotEmpty) ...[
+          const Text('High-Risk Sessions',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 12),
+          ...sessRisk.map((s) => _buildSessionRiskCard(s)),
+        ],
+
+        // Empty state when no risk data yet
+        if (suspicious == 0 && risky.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              children: [
+                Icon(Icons.shield_outlined, size: 48, color: AppTheme.successColor.withOpacity(0.6)),
+                const SizedBox(height: 12),
+                const Text('No suspicious activity detected yet',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                const SizedBox(height: 6),
+                Text(
+                  'The AI engine will flag students after analyzing scan patterns, IP addresses, and timing.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppTheme.textTertiary, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildRiskDistributionBar(String label, int count, int total, Color color) {
+    final pct = total > 0 ? count / total : 0.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+            Text('$count (${(pct * 100).round()}%)',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color)),
+          ],
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: LinearProgressIndicator(
+            value: pct,
+            minHeight: 8,
+            backgroundColor: color.withOpacity(0.1),
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRiskyStudentCard(dynamic s) {
+    final name    = s['student_name']?.toString() ?? 'Unknown';
+    final roll    = s['roll_number']?.toString() ?? '';
+    final subject = s['subject']?.toString() ?? '';
+    final section = s['section']?.toString() ?? '';
+    final count   = s['flagged_count'] as int? ?? 0;
+    final avgScore = s['avg_risk_score'] as int? ?? 0;
+    final maxScore = s['max_risk_score'] as int? ?? 0;
+
+    Color scoreColor = avgScore >= 75
+        ? AppTheme.dangerColor
+        : avgScore >= 50
+            ? AppTheme.warningColor
+            : const Color(0xFFFF9800);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppTheme.dangerColor.withOpacity(0.2)),
+        boxShadow: [BoxShadow(color: AppTheme.dangerColor.withOpacity(0.06), blurRadius: 8)],
+      ),
+      child: Row(
+        children: [
+          _buildRiskScoreBadge(avgScore, scoreColor),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                if (roll.isNotEmpty)
+                  Text(roll, style: TextStyle(fontSize: 11, color: AppTheme.textTertiary)),
+                const SizedBox(height: 4),
+                Text(
+                  '$subject${section.isNotEmpty ? ' · $section' : ''}',
+                  style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppTheme.dangerColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '$count flag${count == 1 ? '' : 's'}',
+                  style: const TextStyle(color: AppTheme.dangerColor, fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text('Peak: $maxScore', style: TextStyle(fontSize: 10, color: AppTheme.textTertiary)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRiskScoreBadge(int score, Color color) {
+    return Container(
+      width: 52,
+      height: 52,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color.withOpacity(0.1),
+        border: Border.all(color: color.withOpacity(0.4), width: 2),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text('$score', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 15)),
+          Text('risk', style: TextStyle(color: color.withOpacity(0.7), fontSize: 8)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSessionRiskCard(dynamic s) {
+    final subject    = s['subject']?.toString() ?? 'Session';
+    final section    = s['section']?.toString() ?? '';
+    final flagCount  = s['suspicious_count'] as int? ?? 0;
+    final totalMarks = s['total_marks'] as int? ?? 0;
+    final peakRisk   = s['peak_risk'] as int? ?? 0;
+    final startRaw   = s['start_time']?.toString();
+    String dateStr = '';
+    if (startRaw != null) {
+      try {
+        final dt = DateTime.parse(startRaw).toLocal();
+        dateStr = '${dt.day}/${dt.month} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      } catch (_) {}
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.warningColor.withOpacity(0.25)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppTheme.warningColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.local_fire_department, color: AppTheme.warningColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('$subject${section.isNotEmpty ? ' ($section)' : ''}',
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                if (dateStr.isNotEmpty)
+                  Text(dateStr, style: TextStyle(fontSize: 11, color: AppTheme.textTertiary)),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text('$flagCount / $totalMarks flagged',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.dangerColor)),
+              Text('Peak risk: $peakRisk',
+                  style: TextStyle(fontSize: 10, color: AppTheme.textTertiary)),
+            ],
+          ),
         ],
       ),
     );

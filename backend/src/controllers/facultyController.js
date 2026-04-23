@@ -3,6 +3,7 @@ const { generateQRData } = require('../utils/qr');
 const crypto = require('crypto');
 const csv = require('csv-parser');
 const fs = require('fs');
+const { getRiskInsights } = require('../utils/riskEngine');
 
 /**
  * Generate a unique 6-character session code (e.g. A3X9K2)
@@ -353,8 +354,21 @@ async function getAnalytics(req, res) {
             [facultyId]
         );
 
+        // 4. Total Sessions across all classes
+        const sessionsCount = await db.query(
+            `SELECT COUNT(*) as count
+             FROM attendance_sessions s
+             JOIN classes c ON s.class_id = c.id
+             WHERE c.faculty_id = $1`,
+            [facultyId]
+        );
+
+        // 5. AI Risk Insights (async, non-blocking for main analytics)
+        const riskInsights = await getRiskInsights(facultyId);
+
         res.json({
             totalClasses: parseInt(classesCount.rows[0].count),
+            totalSessions: parseInt(sessionsCount.rows[0].count),
             classPerformance: classPerformance.rows.map(row => ({
                 ...row,
                 total_sessions: parseInt(row.total_sessions),
@@ -365,9 +379,47 @@ async function getAnalytics(req, res) {
                     : 0
             })),
             proxyAttempts: proxyAttempts.rows,
+            riskInsights,
         });
     } catch (error) {
         console.error('Get analytics error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+}
+
+/**
+ * Dedicated Risk Analytics endpoint — returns detailed per-student risk breakdown
+ */
+async function getAnalyticsRisk(req, res) {
+    try {
+        const facultyId = req.user.userId;
+
+        // Suspicious records with full detail
+        const suspiciousRecords = await db.query(
+            `SELECT ar.id, ar.marked_at, ar.proxy_risk_score, ar.risk_flags, ar.scan_ip, ar.status,
+                    u.name as student_name, s.roll_number,
+                    c.subject, c.section, c.department,
+                    sess.start_time as session_start
+             FROM attendance_records ar
+             JOIN students s ON ar.student_id = s.id
+             JOIN users u ON s.id = u.id
+             JOIN attendance_sessions sess ON ar.session_id = sess.id
+             JOIN classes c ON sess.class_id = c.id
+             WHERE c.faculty_id = $1
+               AND ar.status = 'SUSPICIOUS'
+             ORDER BY ar.proxy_risk_score DESC, ar.marked_at DESC
+             LIMIT 50`,
+            [facultyId]
+        );
+
+        const insights = await getRiskInsights(facultyId);
+
+        res.json({
+            suspiciousRecords: suspiciousRecords.rows,
+            ...insights,
+        });
+    } catch (error) {
+        console.error('Get analytics risk error:', error);
         res.status(500).json({ message: 'Server error' });
     }
 }
@@ -693,6 +745,7 @@ module.exports = {
     startSession,
     endSession,
     getAnalytics,
+    getAnalyticsRisk,
     getClasses,
     getLiveCount,
     getSampleCSV,
