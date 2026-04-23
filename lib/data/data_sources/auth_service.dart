@@ -73,7 +73,7 @@ class AuthService {
       String emailOrId, String message) async {
     try {
       final response = await _dio.post(
-        '${ApiEndpoints.baseUrl}/auth/contact-admin',
+        ApiEndpoints.contactAdmin,
         data: {
           'emailOrId': emailOrId,
           'message': message,

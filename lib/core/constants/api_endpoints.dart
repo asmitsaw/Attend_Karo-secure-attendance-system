@@ -9,6 +9,7 @@ class ApiEndpoints {
   // Authentication
   static const String login = '$baseUrl/auth/login';
   static const String logout = '$baseUrl/auth/logout';
+  static const String contactAdmin = '$baseUrl/auth/contact-admin';
 
   // Admin Endpoints
   static const String uploadStudentBatch = '$baseUrl/admin/students/upload';
