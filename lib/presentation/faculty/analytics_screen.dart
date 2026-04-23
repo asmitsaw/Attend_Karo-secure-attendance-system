@@ -600,6 +600,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       itemCount: proxies.length,
       itemBuilder: (ctx, i) {
         final p = proxies[i];
+        final name = p['student_name'] ?? 'Unknown';
+        final rollNo = p['roll_number'] ?? '';
+        final reason = p['reason'] ?? 'Unknown reason';
+        final subject = p['subject'] ?? '';
+        final section = p['section'] ?? '';
+        final distance = p['distance'];
+        final distanceStr = distance != null
+            ? '${double.tryParse(distance.toString())?.toStringAsFixed(0) ?? distance}m away'
+            : null;
+
         return Card(
           elevation: 0,
           margin: const EdgeInsets.only(bottom: 8),
@@ -607,30 +617,114 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             borderRadius: BorderRadius.circular(12),
             side: BorderSide(color: Colors.grey.shade200),
           ),
-          child: ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.warningColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.warning_amber,
-                color: AppTheme.warningColor,
-                size: 20,
-              ),
-            ),
-            title: Text(
-              p['student_name'] ?? 'Unknown',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: Text(
-              'Distance: ${p['distance']?.toStringAsFixed(1)}m • ${p['subject'] ?? ''}',
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: Text(
-              _formatDate(p['attempted_at']),
-              style: const TextStyle(fontSize: 10, color: Colors.grey),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.warningColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.warning_amber,
+                    color: AppTheme.warningColor,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Text(
+                            _formatDate(p['attempted_at']),
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey,
+                            ),
+                            textAlign: TextAlign.right,
+                          ),
+                        ],
+                      ),
+                      if (rollNo.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          rollNo,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textTertiary,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.dangerColor.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          reason,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.dangerColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          if (subject.isNotEmpty)
+                            Text(
+                              '$subject${section.isNotEmpty ? ' ($section)' : ''}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                          if (subject.isNotEmpty && distanceStr != null)
+                            Text(
+                              ' • ',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppTheme.textTertiary,
+                              ),
+                            ),
+                          if (distanceStr != null)
+                            Text(
+                              distanceStr,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -766,14 +860,22 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   color: PdfColors.red50,
                 ),
                 data: <List<String>>[
-                  <String>['Student', 'Subject', 'Distance', 'Time'],
+                  <String>['Student', 'Roll No', 'Reason', 'Subject', 'Distance', 'Time'],
                   ...proxies.map(
-                    (p) => [
-                      p['student_name']?.toString() ?? 'Unknown',
-                      p['subject']?.toString() ?? '',
-                      '${p['distance']?.toStringAsFixed(1) ?? '?'}m',
-                      _formatDate(p['attempted_at']),
-                    ],
+                    (p) {
+                      final dist = p['distance'];
+                      final distStr = dist != null
+                          ? '${double.tryParse(dist.toString())?.toStringAsFixed(0) ?? dist}m'
+                          : 'N/A';
+                      return [
+                        p['student_name']?.toString() ?? 'Unknown',
+                        p['roll_number']?.toString() ?? '',
+                        p['reason']?.toString() ?? 'Unknown',
+                        p['subject']?.toString() ?? '',
+                        distStr,
+                        _formatDate(p['attempted_at']),
+                      ];
+                    },
                   ),
                 ],
               ),

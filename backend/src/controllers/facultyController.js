@@ -325,14 +325,31 @@ async function getAnalytics(req, res) {
 
         // 3. Recent Proxy Attempts
         const proxyAttempts = await db.query(
-            `SELECT p.*, u.name as student_name, c.subject 
-       FROM proxy_attempts p
-       JOIN users u ON p.student_id = u.id
-       JOIN attendance_sessions s ON p.session_id = s.id
-       JOIN classes c ON s.class_id = c.id
-       WHERE c.faculty_id = $1
-       ORDER BY p.attempted_at DESC
-       LIMIT 20`,
+            `SELECT p.id, p.reason, p.attempted_at,
+                    u.name as student_name, s.roll_number,
+                    c.subject, c.section,
+                    p.latitude as student_lat, p.longitude as student_lng,
+                    ses.latitude as session_lat, ses.longitude as session_lng,
+                    CASE
+                      WHEN p.latitude IS NOT NULL AND p.longitude IS NOT NULL
+                           AND ses.latitude IS NOT NULL AND ses.longitude IS NOT NULL
+                      THEN ROUND(
+                        (6371000 * ACOS(
+                          LEAST(1, COS(RADIANS(p.latitude)) * COS(RADIANS(ses.latitude))
+                            * COS(RADIANS(ses.longitude) - RADIANS(p.longitude))
+                            + SIN(RADIANS(p.latitude)) * SIN(RADIANS(ses.latitude)))
+                        ))::numeric, 1
+                      )
+                      ELSE NULL
+                    END as distance
+             FROM proxy_attempts p
+             JOIN users u ON p.student_id = u.id
+             JOIN students s ON p.student_id = s.id
+             JOIN attendance_sessions ses ON p.session_id = ses.id
+             JOIN classes c ON ses.class_id = c.id
+             WHERE c.faculty_id = $1
+             ORDER BY p.attempted_at DESC
+             LIMIT 50`,
             [facultyId]
         );
 
