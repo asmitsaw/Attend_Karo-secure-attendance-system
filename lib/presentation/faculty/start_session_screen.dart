@@ -22,6 +22,7 @@ class _StartSessionScreenState extends State<StartSessionScreen>
   String? _selectedClassId;
   String? _selectedClassName;
   String? _selectedTimeSlot;
+  late TimeOfDay _sessionStartTime;
   bool _sessionStarted = false;
   bool _isLoading = false;
   int _scannedCount = 0;
@@ -42,6 +43,8 @@ class _StartSessionScreenState extends State<StartSessionScreen>
   @override
   void initState() {
     super.initState();
+    _sessionStartTime = TimeOfDay.now();
+    _autoSelectTimeSlot();
     _loadClasses();
 
     // Resume session if provided
@@ -322,6 +325,36 @@ class _StartSessionScreenState extends State<StartSessionScreen>
     return '$m:$s';
   }
 
+  /// Auto-select the time slot matching the current hour
+  void _autoSelectTimeSlot() {
+    final now = TimeOfDay.now();
+    final slots = _generateTimeSlots();
+    // Find the slot whose start hour matches the current hour
+    for (final slot in slots) {
+      final startHourStr = slot.split(' - ')[0].trim();
+      final parsed = _parseSlotHour(startHourStr);
+      if (parsed != null && parsed == now.hour) {
+        _selectedTimeSlot = slot;
+        break;
+      }
+    }
+  }
+
+  /// Parse a slot string like "02:00 PM" back to 24h hour
+  int? _parseSlotHour(String str) {
+    try {
+      final parts = str.split(' ');
+      final timePart = parts[0].split(':');
+      int hour = int.parse(timePart[0]);
+      final period = parts[1].toUpperCase();
+      if (period == 'PM' && hour != 12) hour += 12;
+      if (period == 'AM' && hour == 12) hour = 0;
+      return hour;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Generate dynamic time slots based on current time
   List<String> _generateTimeSlots() {
     final now = TimeOfDay.now();
@@ -348,6 +381,48 @@ class _StartSessionScreenState extends State<StartSessionScreen>
         ? hour24 - 12
         : hour24;
     return '${hour12.toString().padLeft(2, '0')}:00 $period';
+  }
+
+  String _formatTimeOfDay(TimeOfDay t) {
+    final hour = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
+    final minute = t.minute.toString().padLeft(2, '0');
+    final period = t.period == DayPeriod.am ? 'AM' : 'PM';
+    return '$hour:$minute $period';
+  }
+
+  Future<void> _pickStartTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _sessionStartTime,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: AppTheme.primaryColor,
+              onSurface: AppTheme.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        _sessionStartTime = picked;
+        // Also update the time slot to match if possible
+        final slots = _generateTimeSlots();
+        String? matchedSlot;
+        for (final slot in slots) {
+          final startHourStr = slot.split(' - ')[0].trim();
+          final parsed = _parseSlotHour(startHourStr);
+          if (parsed != null && parsed == picked.hour) {
+            matchedSlot = slot;
+            break;
+          }
+        }
+        _selectedTimeSlot = matchedSlot;
+      });
+    }
   }
 
   Future<void> _endSession() async {
@@ -515,9 +590,87 @@ class _StartSessionScreenState extends State<StartSessionScreen>
                         }),
                       ),
                 const SizedBox(height: 20),
+
+                // ── Start Time Display ──
+                Text(
+                  'Start Time',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: _pickStartTime,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: AppTheme.primaryColor.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.schedule,
+                          color: AppTheme.primaryColor,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          _formatTimeOfDay(_sessionStartTime),
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.primaryColor,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.edit,
+                                size: 14,
+                                color: AppTheme.primaryColor,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Change',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.primaryColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // ── Time Slot Dropdown (optional) ──
                 DropdownButtonFormField<String>(
                   decoration: InputDecoration(
-                    labelText: 'Select Time Slot',
+                    labelText: 'Time Slot (optional)',
                     prefixIcon: const Icon(Icons.access_time),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -527,7 +680,22 @@ class _StartSessionScreenState extends State<StartSessionScreen>
                   items: _generateTimeSlots().map((slot) {
                     return DropdownMenuItem(value: slot, child: Text(slot));
                   }).toList(),
-                  onChanged: (v) => setState(() => _selectedTimeSlot = v),
+                  onChanged: (v) {
+                    setState(() {
+                      _selectedTimeSlot = v;
+                      // Also update the start time to match the slot start
+                      if (v != null) {
+                        final startHourStr = v.split(' - ')[0].trim();
+                        final parsed = _parseSlotHour(startHourStr);
+                        if (parsed != null) {
+                          _sessionStartTime = TimeOfDay(
+                            hour: parsed,
+                            minute: 0,
+                          );
+                        }
+                      }
+                    });
+                  },
                 ),
                 const SizedBox(height: 20),
                 SizedBox(
