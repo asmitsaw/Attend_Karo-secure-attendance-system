@@ -325,19 +325,20 @@ class _StartSessionScreenState extends State<StartSessionScreen>
     return '$m:$s';
   }
 
-  /// Auto-select the time slot matching the current hour
+  /// Auto-select the time slot matching the start time hour
   void _autoSelectTimeSlot() {
-    final now = TimeOfDay.now();
     final slots = _generateTimeSlots();
-    // Find the slot whose start hour matches the current hour
+    // Find the slot whose start hour matches the session start hour
     for (final slot in slots) {
       final startHourStr = slot.split(' - ')[0].trim();
       final parsed = _parseSlotHour(startHourStr);
-      if (parsed != null && parsed == now.hour) {
+      if (parsed != null && parsed == _sessionStartTime.hour) {
         _selectedTimeSlot = slot;
         break;
       }
     }
+    // If no exact match, select the first slot
+    _selectedTimeSlot ??= slots.isNotEmpty ? slots.first : null;
   }
 
   /// Parse a slot string like "02:00 PM" back to 24h hour
@@ -355,19 +356,18 @@ class _StartSessionScreenState extends State<StartSessionScreen>
     }
   }
 
-  /// Generate dynamic time slots based on current time
+  /// Generate 4 nearest 1-hour slots around the selected start time
   List<String> _generateTimeSlots() {
-    final now = TimeOfDay.now();
+    final baseHour = _sessionStartTime.hour;
     final slots = <String>[];
 
-    // Start from 2 hours before current hour (min 7 AM), go until 7 PM
-    final startHour = (now.hour - 2).clamp(7, 19);
-    const endHour = 19; // 7 PM
+    // 1 slot before, current slot, 2 slots after (4 total)
+    final startHour = (baseHour - 1).clamp(6, 22);
 
-    for (int h = startHour; h < endHour; h++) {
-      final fromHour = h;
-      final toHour = h + 1;
-      slots.add('${_formatHour(fromHour)} - ${_formatHour(toHour)}');
+    for (int i = 0; i < 4; i++) {
+      final h = startHour + i;
+      if (h >= 23) break; // Don't go past 11 PM
+      slots.add('${_formatHour(h)} - ${_formatHour(h + 1)}');
     }
 
     return slots;
@@ -409,18 +409,7 @@ class _StartSessionScreenState extends State<StartSessionScreen>
     if (picked != null && mounted) {
       setState(() {
         _sessionStartTime = picked;
-        // Also update the time slot to match if possible
-        final slots = _generateTimeSlots();
-        String? matchedSlot;
-        for (final slot in slots) {
-          final startHourStr = slot.split(' - ')[0].trim();
-          final parsed = _parseSlotHour(startHourStr);
-          if (parsed != null && parsed == picked.hour) {
-            matchedSlot = slot;
-            break;
-          }
-        }
-        _selectedTimeSlot = matchedSlot;
+        _autoSelectTimeSlot();
       });
     }
   }
@@ -667,10 +656,10 @@ class _StartSessionScreenState extends State<StartSessionScreen>
 
                 const SizedBox(height: 16),
 
-                // ── Time Slot Dropdown (optional) ──
+                // ── Time Slot Dropdown ──
                 DropdownButtonFormField<String>(
                   decoration: InputDecoration(
-                    labelText: 'Time Slot (optional)',
+                    labelText: 'Time Slot',
                     prefixIcon: const Icon(Icons.access_time),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -681,20 +670,7 @@ class _StartSessionScreenState extends State<StartSessionScreen>
                     return DropdownMenuItem(value: slot, child: Text(slot));
                   }).toList(),
                   onChanged: (v) {
-                    setState(() {
-                      _selectedTimeSlot = v;
-                      // Also update the start time to match the slot start
-                      if (v != null) {
-                        final startHourStr = v.split(' - ')[0].trim();
-                        final parsed = _parseSlotHour(startHourStr);
-                        if (parsed != null) {
-                          _sessionStartTime = TimeOfDay(
-                            hour: parsed,
-                            minute: 0,
-                          );
-                        }
-                      }
-                    });
+                    setState(() => _selectedTimeSlot = v);
                   },
                 ),
                 const SizedBox(height: 20),
